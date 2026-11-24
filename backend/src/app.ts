@@ -1,10 +1,12 @@
 import path from 'node:path';
 import cors from 'cors';
-import express from 'express';
+import express, { type Express } from 'express';
 import rateLimit from 'express-rate-limit';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import { env } from './config/env';
+import { createMysqlClient, ensureMysqlDatabase } from './db/connection';
+import { initializeSchema, seedDefaultsIfEmpty } from './db/schema';
 import type { DbClient } from './db/types';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 import { createAdminAuthRoutes } from './routes/adminAuthRoutes';
@@ -22,10 +24,10 @@ export interface AppOptions {
   enableRateLimit?: boolean;
 }
 
-export function createApp(options: AppOptions) {
+export function createApp(options: AppOptions): Express {
   const app = express();
   app.set('trust proxy', 1);
-  const publicDir = options.publicDir ?? path.resolve(process.cwd(), 'public');
+  const publicDir = options.publicDir ?? path.resolve(__dirname, '..', 'public');
 
   app.use(
     helmet({
@@ -109,3 +111,97 @@ export function createApp(options: AppOptions) {
 
   return app;
 }
+
+/**
+ * Default Express app export for Vercel's Zero-Config Express runtime.
+ * Serves static portal/admin files immediately and lazily initializes MySQL for API/upload routes.
+ */
+function createServerlessApp(): Express {
+  const publicDir = path.resolve(__dirname, '..', 'public');
+  const serverlessApp = express();
+  serverlessApp.set('trust proxy', 1);
+
+  serverlessApp.use(express.static(publicDir));
+  serverlessApp.get('/', (_req, res) => {
+    res.sendFile(path.join(publicDir, 'index.html'));
+  });
+  serverlessApp.get('/admin', (_req, res) => {
+    res.sendFile(path.join(publicDir, 'admin.html'));
+  });
+
+  let apiAppPromise: Promise<Express> | null = null;
+
+  async function initApiApp(): Promise<Express> {
+    if (
+      process.env.VERCEL &&
+      !env.databaseUrl &&
+      (env.dbHost === '127.0.0.1' || env.dbHost === 'localhost')
+    ) {
+      throw new Error(
+        'DATABASE_URL is not configured in Vercel Environment Variables. Add a cloud MySQL DATABASE_URL (e.g. TiDB Cloud or Aiven) and redeploy.'
+      );
+    }
+
+    const connectionLimit = process.env.DB_CONNECTION_LIMIT
+      ? Number(process.env.DB_CONNECTION_LIMIT)
+      : 2;
+
+    const mysqlConfig = {
+      databaseUrl: env.databaseUrl || undefined,
+      host: env.dbHost,
+      port: env.dbPort,
+      user: env.dbUser,
+      password: env.dbPassword,
+      database: env.dbName,
+      ssl: env.dbSsl,
+      sslRejectUnauthorized: env.dbSslRejectUnauthorized,
+      connectionLimit,
+    };
+
+    await ensureMysqlDatabase(mysqlConfig);
+    const db = createMysqlClient(mysqlConfig);
+    await db.ping();
+    await initializeSchema(db);
+    await seedDefaultsIfEmpty(db, {
+      adminEmail: env.adminEmail,
+      adminPassword: env.adminPassword,
+      adminName: env.adminName,
+    });
+
+    return createApp({
+      db,
+      publicDir,
+      enableLogging: false,
+    });
+  }
+
+  function getApiApp(): Promise<Express> {
+    if (!apiAppPromise) {
+      apiAppPromise = initApiApp().catch((err) => {
+        apiAppPromise = null;
+        throw err;
+      });
+    }
+    return apiAppPromise;
+  }
+
+  serverlessApp.use((req, res, next) => {
+    getApiApp()
+      .then((apiApp) => apiApp(req, res, next))
+      .catch((err: unknown) => {
+        const message = err instanceof Error ? err.message : 'Database connection failed';
+        console.error('[Vercel API Init Error]', err);
+        res.status(503).json({
+          error: {
+            code: 'DATABASE_UNAVAILABLE',
+            message,
+          },
+        });
+      });
+  });
+
+  return serverlessApp;
+}
+
+const defaultApp = createServerlessApp();
+export default defaultApp;

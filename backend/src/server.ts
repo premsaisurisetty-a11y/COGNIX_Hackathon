@@ -47,7 +47,9 @@ async function bootstrap() {
   process.on('SIGTERM', () => void shutdown('SIGTERM'));
 }
 
-bootstrap().catch((err) => {
-  console.error('Failed to start COGNIX \'26 Backend:', err);
-  process.exit(1);
-});
+if (!process.env.VERCEL) {
+  bootstrap().catch((err) => {
+    console.error("Failed to start COGNIX '26 Backend:", err);
+    process.exit(1);
+  });
+}

@@ -1,7 +1,6 @@
 import request from 'supertest';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import vercelApp from '../api/index';
-import { createApp } from '../src/app';
+import vercelApp, { createApp } from '../src/app';
 import { initializeSchema, seedDefaultsIfEmpty } from '../src/db/schema';
 import type { DbClient } from '../src/db/types';
 import { createInMemoryTestClient } from './testDb';
