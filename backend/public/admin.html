@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Admin CMS — COGNIX ’26</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header class="site-header" style="padding-bottom:24px;border-bottom:1px solid var(--line)">
+    <a href="/" class="brand-logo" aria-label="ACM KLH Student Chapter">
+      <img src="/acm-klh-logo.jpg" alt="ACM Student Chapter, KL University Bachupally Campus">
+    </a>
+    <div class="brand-meta">
+      <span class="mono muted" style="font-size:13px">COGNIX ’26 / ADMIN CMS</span>
+      <span id="admin-user-label" class="muted" style="font-size:16px">Sign in to manage hackathon content</span>
+    </div>
+    <div style="margin-left:auto;display:flex;gap:12px;align-items:center">
+      <a href="/" class="btn btn-sm">VIEW LIVE PORTAL</a>
+      <button id="btn-logout" class="btn btn-sm btn-danger hidden">SIGN OUT</button>
+    </div>
+  </header>
+
+  <!-- LOGIN VIEW -->
+  <section id="login-view" class="login-wrap">
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:20px">
+      <span class="accent-bar" style="width:32px"></span>
+      <span class="mono muted" style="font-size:13px">ORGANIZER ACCESS</span>
+    </div>
+    <h1 class="display" style="margin:0 0 8px;font-size:34px;font-weight:500">Admin Login</h1>
+    <p class="muted" style="margin:0 0 24px;font-size:15px">Manage problem statements, release toggles, schedule, podium results, showcase, brief, and FAQs.</p>
+    <form id="login-form">
+      <div class="field">
+        <label for="login-username">Username or Email</label>
+        <input id="login-username" type="text" autocomplete="username" value="Admin" required>
+      </div>
+      <div class="field">
+        <label for="login-password">Password</label>
+        <input id="login-password" type="password" autocomplete="current-password" placeholder="Enter admin password" required>
+      </div>
+      <p id="login-error" class="mono hidden" style="color:var(--danger);font-size:12px;margin:0 0 14px"></p>
+      <button type="submit" class="btn btn-primary" style="width:100%">SIGN IN</button>
+    </form>
+  </section>
+
+  <!-- DASHBOARD VIEW -->
+  <main id="dashboard-view" class="admin-shell hidden">
+    <nav class="chip-row" id="admin-tabs" style="border-bottom:1px solid var(--line);padding-bottom:16px">
+      <button class="chip active" data-tab="overview">OVERVIEW &amp; CONFIG</button>
+      <button class="chip" data-tab="problems">TRACKS &amp; PROBLEMS</button>
+      <button class="chip" data-tab="schedule">SCHEDULE</button>
+      <button class="chip" data-tab="results">RESULTS &amp; SHOWCASE</button>
+      <button class="chip" data-tab="brief">BRIEF &amp; FAQ</button>
+      <button class="chip" data-tab="account">ACCOUNT</button>
+    </nav>
+
+    <div id="tab-content"></div>
+  </main>
+
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="/admin.js"></script>
+</body>
+</html>
