@@ -5,9 +5,8 @@ import rateLimit from 'express-rate-limit';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import { env } from './config/env';
-import { createMysqlClient, ensureMysqlDatabase } from './db/connection';
-import { initializeSchema, seedDefaultsIfEmpty } from './db/schema';
-import type { DbClient } from './db/types';
+import { MongoStore } from './db/mongoStore';
+import type { DataStore } from './db/types';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 import { createAdminAuthRoutes } from './routes/adminAuthRoutes';
 import { createAdminRoutes } from './routes/adminRoutes';
@@ -18,7 +17,7 @@ import { asyncHandler } from './utils/asyncHandler';
 import { notFound } from './utils/httpError';
 
 export interface AppOptions {
-  db: DbClient;
+  store: DataStore;
   publicDir?: string;
   enableLogging?: boolean;
   enableRateLimit?: boolean;
@@ -74,10 +73,10 @@ export function createApp(options: AppOptions): Express {
     );
   }
 
-  const portalService = new PortalService(options.db);
-  const adminService = new AdminService(options.db, portalService);
+  const portalService = new PortalService(options.store);
+  const adminService = new AdminService(options.store);
 
-  // Serve screenshots stored persistently in MySQL uploaded_files table
+  // Serve screenshots stored persistently in MongoDB uploaded_files collection
   app.get(
     '/uploads/:filename',
     asyncHandler(async (req, res) => {
@@ -114,7 +113,7 @@ export function createApp(options: AppOptions): Express {
 
 /**
  * Default Express app export for Vercel's Zero-Config Express runtime.
- * Serves static portal/admin files immediately and lazily initializes MySQL for API/upload routes.
+ * Serves static portal/admin files immediately and lazily connects MongoDB for API/upload routes.
  */
 function createServerlessApp(): Express {
   const publicDir = path.resolve(__dirname, '..', 'public');
@@ -132,44 +131,22 @@ function createServerlessApp(): Express {
   let apiAppPromise: Promise<Express> | null = null;
 
   async function initApiApp(): Promise<Express> {
-    if (
-      process.env.VERCEL &&
-      !env.databaseUrl &&
-      (env.dbHost === '127.0.0.1' || env.dbHost === 'localhost')
-    ) {
+    if (!env.mongodbUri) {
       throw new Error(
-        'DATABASE_URL is not configured in Vercel Environment Variables. Add a cloud MySQL DATABASE_URL (e.g. TiDB Cloud or Aiven) and redeploy.'
+        'MONGODB_URI is not configured in Vercel Environment Variables. Add your MongoDB Atlas URI (mongodb+srv://...) and redeploy.'
       );
     }
 
-    const connectionLimit = process.env.DB_CONNECTION_LIMIT
-      ? Number(process.env.DB_CONNECTION_LIMIT)
-      : 2;
-
-    const mysqlConfig = {
-      databaseUrl: env.databaseUrl || undefined,
-      host: env.dbHost,
-      port: env.dbPort,
-      user: env.dbUser,
-      password: env.dbPassword,
-      database: env.dbName,
-      ssl: env.dbSsl,
-      sslRejectUnauthorized: env.dbSslRejectUnauthorized,
-      connectionLimit,
-    };
-
-    await ensureMysqlDatabase(mysqlConfig);
-    const db = createMysqlClient(mysqlConfig);
-    await db.ping();
-    await initializeSchema(db);
-    await seedDefaultsIfEmpty(db, {
+    const store = new MongoStore(env.mongodbUri, env.mongodbDbName || undefined);
+    await store.init();
+    await store.seedDefaultsIfEmpty({
       adminEmail: env.adminEmail,
       adminPassword: env.adminPassword,
       adminName: env.adminName,
     });
 
     return createApp({
-      db,
+      store,
       publicDir,
       enableLogging: false,
     });
@@ -189,8 +166,8 @@ function createServerlessApp(): Express {
     getApiApp()
       .then((apiApp) => apiApp(req, res, next))
       .catch((err: unknown) => {
-        const message = err instanceof Error ? err.message : 'Database connection failed';
-        console.error('[Vercel API Init Error]', err);
+        const message = err instanceof Error ? err.message : 'MongoDB connection failed';
+        console.error('[Vercel MongoDB Init Error]', err);
         res.status(503).json({
           error: {
             code: 'DATABASE_UNAVAILABLE',

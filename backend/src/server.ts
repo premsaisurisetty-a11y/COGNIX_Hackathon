@@ -1,44 +1,31 @@
 import { createApp } from './app';
 import { env } from './config/env';
-import { createMysqlClient, ensureMysqlDatabase } from './db/connection';
-import { initializeSchema, seedDefaultsIfEmpty } from './db/schema';
+import { MongoStore } from './db/mongoStore';
 
 async function bootstrap() {
-  const mysqlConfig = {
-    databaseUrl: env.databaseUrl || undefined,
-    host: env.dbHost,
-    port: env.dbPort,
-    user: env.dbUser,
-    password: env.dbPassword,
-    database: env.dbName,
-    ssl: env.dbSsl,
-    sslRejectUnauthorized: env.dbSslRejectUnauthorized,
-    connectionLimit: env.dbConnectionLimit,
-  };
+  if (!env.mongodbUri) {
+    throw new Error('MONGODB_URI is required to start the server');
+  }
 
-  await ensureMysqlDatabase(mysqlConfig);
-  const db = createMysqlClient(mysqlConfig);
-
-  await db.ping();
-  await initializeSchema(db);
-  await seedDefaultsIfEmpty(db, {
+  const store = new MongoStore(env.mongodbUri, env.mongodbDbName || undefined);
+  await store.init();
+  await store.seedDefaultsIfEmpty({
     adminEmail: env.adminEmail,
     adminPassword: env.adminPassword,
     adminName: env.adminName,
   });
 
-  const app = createApp({ db });
+  const app = createApp({ store });
 
   const server = app.listen(env.port, () => {
-    const target = env.databaseUrl ? 'DATABASE_URL (MySQL)' : `${env.dbHost}:${env.dbPort}/${env.dbName} (MySQL)`;
     console.log(`COGNIX '26 Backend API running on http://localhost:${env.port}`);
-    console.log(`Connected to MySQL: ${target}`);
+    console.log('Connected to MongoDB');
   });
 
   async function shutdown(signal: string) {
     console.log(`\nReceived ${signal}. Shutting down gracefully...`);
     server.close(async () => {
-      await db.close();
+      await store.close();
       process.exit(0);
     });
   }

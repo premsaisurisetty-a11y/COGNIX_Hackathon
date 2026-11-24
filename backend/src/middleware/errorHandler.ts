@@ -50,46 +50,14 @@ export function errorHandler(
     return;
   }
 
-  // Handle MySQL (mysql2) error codes
+  // Handle MongoDB duplicate key error (E11000)
   if (err && typeof err === 'object' && 'code' in err) {
-    const mysqlCode = String((err as { code?: unknown }).code ?? '');
-    if (mysqlCode === 'ER_DUP_ENTRY') {
+    const code = (err as { code?: unknown }).code;
+    if (code === 11000 || code === '11000') {
       res.status(409).json({
         error: {
           code: 'CONFLICT',
           message: 'A record with that unique value already exists',
-        },
-      });
-      return;
-    }
-    if (mysqlCode === 'ER_NO_REFERENCED_ROW_2' || mysqlCode === 'ER_ROW_IS_REFERENCED_2') {
-      res.status(400).json({
-        error: {
-          code: 'INVALID_REFERENCE',
-          message: 'Referenced parent record does not exist',
-        },
-      });
-      return;
-    }
-  }
-
-  // Handle in-memory SQLite test adapter constraint errors
-  if (err && typeof err === 'object' && 'errcode' in err) {
-    const message = err instanceof Error ? err.message : 'Database error';
-    if (message.includes('UNIQUE constraint failed')) {
-      res.status(409).json({
-        error: {
-          code: 'CONFLICT',
-          message: 'A record with that unique value already exists',
-        },
-      });
-      return;
-    }
-    if (message.includes('FOREIGN KEY constraint failed')) {
-      res.status(400).json({
-        error: {
-          code: 'INVALID_REFERENCE',
-          message: 'Referenced parent record does not exist',
         },
       });
       return;

@@ -1,12 +1,11 @@
 import request from 'supertest';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import vercelApp, { createApp } from '../src/app';
-import { initializeSchema, seedDefaultsIfEmpty } from '../src/db/schema';
-import type { DbClient } from '../src/db/types';
-import { createInMemoryTestClient } from './testDb';
+import type { DataStore } from '../src/db/types';
+import { InMemoryStore } from './inMemoryStore';
 
 describe('COGNIX 26 Hackathon Portal CMS & Admin API', () => {
-  let db: DbClient;
+  let store: DataStore;
   let app: ReturnType<typeof createApp>;
 
   const ADMIN_EMAIL = 'admin@acmklh.org';
@@ -14,18 +13,18 @@ describe('COGNIX 26 Hackathon Portal CMS & Admin API', () => {
   const ADMIN_PASSWORD = 'ACM0206';
 
   beforeEach(async () => {
-    db = createInMemoryTestClient();
-    await initializeSchema(db);
-    await seedDefaultsIfEmpty(db, {
+    store = new InMemoryStore();
+    await store.init();
+    await store.seedDefaultsIfEmpty({
       adminEmail: ADMIN_EMAIL,
       adminPassword: ADMIN_PASSWORD,
       adminName: ADMIN_NAME,
     });
-    app = createApp({ db, enableLogging: false, enableRateLimit: false });
+    app = createApp({ store, enableLogging: false, enableRateLimit: false });
   });
 
   afterEach(async () => {
-    await db.close();
+    await store.close();
   });
 
   async function loginAsAdmin(): Promise<string> {
