@@ -1,13 +1,32 @@
 import path from 'node:path';
-import type { Express, Request, Response } from 'express';
+import express, { type Express } from 'express';
 import { createApp } from '../src/app';
 import { env } from '../src/config/env';
 import { createMysqlClient, ensureMysqlDatabase } from '../src/db/connection';
 import { initializeSchema, seedDefaultsIfEmpty } from '../src/db/schema';
 
-let appPromise: Promise<Express> | null = null;
+const publicDir = path.resolve(__dirname, '..', 'public');
+const vercelApp = express();
+vercelApp.set('trust proxy', 1);
 
-async function initServerlessApp(): Promise<Express> {
+// Serve static UI pages & assets immediately without requiring DB on initial HTML load
+vercelApp.use(express.static(publicDir));
+vercelApp.get('/', (_req, res) => {
+  res.sendFile(path.join(publicDir, 'index.html'));
+});
+vercelApp.get('/admin', (_req, res) => {
+  res.sendFile(path.join(publicDir, 'admin.html'));
+});
+
+let apiAppPromise: Promise<Express> | null = null;
+
+async function initApiApp(): Promise<Express> {
+  if (process.env.VERCEL && !env.databaseUrl && (env.dbHost === '127.0.0.1' || env.dbHost === 'localhost')) {
+    throw new Error(
+      'DATABASE_URL is not configured in Vercel Environment Variables. Add a cloud MySQL DATABASE_URL (e.g. TiDB Cloud or Aiven) and redeploy.'
+    );
+  }
+
   const connectionLimit = process.env.DB_CONNECTION_LIMIT
     ? Number(process.env.DB_CONNECTION_LIMIT)
     : 2;
@@ -26,7 +45,7 @@ async function initServerlessApp(): Promise<Express> {
 
   await ensureMysqlDatabase(mysqlConfig);
   const db = createMysqlClient(mysqlConfig);
-
+  await db.ping();
   await initializeSchema(db);
   await seedDefaultsIfEmpty(db, {
     adminEmail: env.adminEmail,
@@ -36,33 +55,34 @@ async function initServerlessApp(): Promise<Express> {
 
   return createApp({
     db,
-    publicDir: path.resolve(__dirname, '..', 'public'),
+    publicDir,
     enableLogging: false,
   });
 }
 
-function getApp(): Promise<Express> {
-  if (!appPromise) {
-    appPromise = initServerlessApp().catch((err) => {
-      // Reset cached promise on error so subsequent requests can retry
-      appPromise = null;
+function getApiApp(): Promise<Express> {
+  if (!apiAppPromise) {
+    apiAppPromise = initApiApp().catch((err) => {
+      apiAppPromise = null;
       throw err;
     });
   }
-  return appPromise;
+  return apiAppPromise;
 }
 
-export default async function handler(req: Request, res: Response): Promise<void> {
-  try {
-    const app = await getApp();
-    app(req, res);
-  } catch (err) {
-    console.error('[Vercel Handler Init Error]', err);
-    res.status(500).json({
-      error: {
-        code: 'DATABASE_UNAVAILABLE',
-        message: 'Backend failed to initialize MySQL connection. Check DATABASE_URL and SSL settings.',
-      },
+vercelApp.use((req, res, next) => {
+  getApiApp()
+    .then((apiApp) => apiApp(req, res, next))
+    .catch((err: unknown) => {
+      const message = err instanceof Error ? err.message : 'Database connection failed';
+      console.error('[Vercel API Init Error]', err);
+      res.status(503).json({
+        error: {
+          code: 'DATABASE_UNAVAILABLE',
+          message,
+        },
+      });
     });
-  }
-}
+});
+
+export default vercelApp;

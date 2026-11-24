@@ -33,6 +33,7 @@ function buildPoolOptions(cfg: MysqlConfig): PoolOptions {
       waitForConnections: true,
       connectionLimit: cfg.connectionLimit,
       queueLimit: 0,
+      connectTimeout: 8000,
       charset: 'utf8mb4',
       ...(enableSsl ? { ssl: { rejectUnauthorized: cfg.sslRejectUnauthorized } } : {}),
     };
@@ -47,6 +48,7 @@ function buildPoolOptions(cfg: MysqlConfig): PoolOptions {
     waitForConnections: true,
     connectionLimit: cfg.connectionLimit,
     queueLimit: 0,
+    connectTimeout: 8000,
     charset: 'utf8mb4',
     ...(cfg.ssl ? { ssl: { rejectUnauthorized: cfg.sslRejectUnauthorized } } : {}),
   };

@@ -1,5 +1,6 @@
 import request from 'supertest';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import vercelApp from '../api/index';
 import { createApp } from '../src/app';
 import { initializeSchema, seedDefaultsIfEmpty } from '../src/db/schema';
 import type { DbClient } from '../src/db/types';
@@ -261,5 +262,15 @@ describe('COGNIX 26 Hackathon Portal CMS & Admin API', () => {
       (s: { label: string }) => s.label === 'PROJECT 04'
     );
     expect(addedProject.screenshotUrl).toBe(uploadRes.body.url);
+  });
+
+  it('serves static portal and admin HTML directly from the Vercel entrypoint without DB dependency', async () => {
+    const home = await request(vercelApp).get('/');
+    expect(home.status).toBe(200);
+    expect(home.headers['content-type']).toContain('text/html');
+
+    const adminPage = await request(vercelApp).get('/admin');
+    expect(adminPage.status).toBe(200);
+    expect(adminPage.text).toContain('Admin Login');
   });
 });

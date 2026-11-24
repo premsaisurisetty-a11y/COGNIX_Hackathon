@@ -373,12 +373,15 @@
   async function init() {
     try {
       const res = await fetch('/api/portal');
-      if (!res.ok) throw new Error('Failed to load portal data');
-      portalData = await res.json();
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data?.error?.message || `Failed to load portal data (${res.status})`);
+      }
+      portalData = data;
       render();
     } catch (err) {
       document.getElementById('portal-root').innerHTML =
-        `<p class="mono" style="color:var(--danger)">Failed to load portal: ${esc(err.message)}</p>`;
+        `<p class="mono" style="color:var(--danger)">${esc(err.message)}</p>`;
     }
   }
 
