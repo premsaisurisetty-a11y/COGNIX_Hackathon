@@ -1,4 +1,41 @@
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600&family=Space+Grotesk:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Marcellus&display=swap');
+
+/* Self-hosted Larken font faces (drop licensed files into backend/public/fonts/) */
+@font-face {
+  font-family: 'Larken';
+  src: local('Larken Regular'), local('Larken'),
+       url('/fonts/Larken-Regular.woff2') format('woff2'),
+       url('/fonts/Larken-Regular.woff') format('woff'),
+       url('/fonts/Larken-Regular.ttf') format('truetype'),
+       url('/fonts/Larken-Regular.otf') format('opentype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Larken';
+  src: local('Larken Medium'),
+       url('/fonts/Larken-Medium.woff2') format('woff2'),
+       url('/fonts/Larken-Medium.woff') format('woff'),
+       url('/fonts/Larken-Medium.ttf') format('truetype'),
+       url('/fonts/Larken-Medium.otf') format('opentype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Larken';
+  src: local('Larken Bold'),
+       url('/fonts/Larken-Bold.woff2') format('woff2'),
+       url('/fonts/Larken-Bold.woff') format('woff'),
+       url('/fonts/Larken-Bold.ttf') format('truetype'),
+       url('/fonts/Larken-Bold.otf') format('opentype');
+  font-weight: 600 700;
+  font-style: normal;
+  font-display: swap;
+}
 
 /* ACM KLH Visual Identity & Colour Reference (2026–27) */
 :root {
@@ -26,9 +63,9 @@
   --purple: var(--klh-purple);
   --danger: var(--klu-red);
 
-  --font-display: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, monospace;
+  --font-display: 'Larken', 'Marcellus', 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+  --font-sans: 'Larken', 'Marcellus', 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+  --font-mono: 'Larken', 'Marcellus', 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
 }
 
 * {
@@ -188,10 +225,10 @@ select {
 .hero-title {
   margin: clamp(36px, 4.5vw, 72px) 0 0;
   font-family: var(--font-display);
-  font-weight: 500;
+  font-weight: 400;
   font-size: clamp(44px, 7.5vw, 132px);
-  line-height: 0.92;
-  letter-spacing: -0.045em;
+  line-height: 0.98;
+  letter-spacing: -0.02em;
   text-transform: uppercase;
   color: var(--ink);
 }

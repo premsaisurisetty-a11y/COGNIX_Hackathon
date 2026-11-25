@@ -35,8 +35,8 @@ export function createApp(options: AppOptions): Express {
         directives: {
           defaultSrc: ["'self'"],
           scriptSrc: ["'self'"],
-          styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
-          fontSrc: ["'self'", 'https://fonts.gstatic.com', 'data:'],
+          styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com', 'https://use.typekit.net'],
+          fontSrc: ["'self'", 'https://fonts.gstatic.com', 'https://use.typekit.net', 'https://p.typekit.net', 'data:'],
           imgSrc: ["'self'", 'data:', 'blob:', 'https:'],
           connectSrc: ["'self'"],
         },
