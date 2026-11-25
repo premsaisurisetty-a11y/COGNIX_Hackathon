@@ -1,6 +1,6 @@
 (function () {
   const TOKEN_KEY = 'cognix_admin_token';
-  // Clear any legacy persistent token and use tab-scoped sessionStorage for higher privacy
+  const MAX_UPLOAD_BYTES = 4 * 1024 * 1024;
   localStorage.removeItem(TOKEN_KEY);
   let token = sessionStorage.getItem(TOKEN_KEY) || '';
   let activeTab = 'overview';
@@ -30,7 +30,18 @@
     el.classList.toggle('error', isError);
     el.classList.remove('hidden');
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => el.classList.add('hidden'), 3200);
+    toastTimer = setTimeout(() => el.classList.add('hidden'), isError ? 5000 : 3200);
+  }
+
+  function formatApiError(data, status) {
+    const base = data?.error?.message || `Request failed (${status})`;
+    const details = data?.error?.details;
+    if (Array.isArray(details) && details.length > 0) {
+      const first = details[0];
+      const field = first.path ? `${first.path}: ` : '';
+      return `${field}${first.message || base}`;
+    }
+    return base;
   }
 
   async function api(path, options = {}) {
@@ -53,12 +64,48 @@
       if (res.status === 401 && path !== '/api/admin/auth/login') {
         logout();
       }
-      throw new Error(data?.error?.message || `Request failed (${res.status})`);
+      throw new Error(formatApiError(data, res.status));
     }
     return data;
   }
 
+  async function withBusy(btn, busyLabel, fn) {
+    if (!btn) return fn();
+    const prev = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = busyLabel;
+    try {
+      return await fn();
+    } finally {
+      btn.disabled = false;
+      btn.textContent = prev;
+    }
+  }
+
+  function openModal(title, html, onBind) {
+    const backdrop = document.getElementById('edit-modal');
+    document.getElementById('modal-title').textContent = title;
+    const body = document.getElementById('modal-body');
+    body.innerHTML = html;
+    backdrop.classList.remove('hidden');
+    if (onBind) onBind(body);
+  }
+
+  function closeModal() {
+    document.getElementById('edit-modal').classList.add('hidden');
+    document.getElementById('modal-body').innerHTML = '';
+  }
+
+  document.getElementById('modal-close').addEventListener('click', closeModal);
+  document.getElementById('edit-modal').addEventListener('click', (e) => {
+    if (e.target.id === 'edit-modal') closeModal();
+  });
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeModal();
+  });
+
   function logout() {
+    closeModal();
     token = '';
     sessionStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(TOKEN_KEY);
@@ -89,6 +136,15 @@
     document.getElementById('dashboard-view').classList.remove('hidden');
     document.getElementById('btn-logout').classList.remove('hidden');
     renderTab();
+  }
+
+  async function uploadImageFile(file) {
+    if (file.size > MAX_UPLOAD_BYTES) {
+      throw new Error('Image must be smaller than 4 MB');
+    }
+    const fd = new FormData();
+    fd.append('file', file);
+    return api('/api/admin/uploads/screenshot', { method: 'POST', body: fd });
   }
 
   function renderOverview() {
@@ -143,22 +199,24 @@
         <div class="form-grid">
           <div class="field"><label>Event Name</label><input name="eventName" value="${esc(c.eventName)}" required></div>
           <div class="field"><label>Footer Tagline</label><input name="eventTagline" value="${esc(c.eventTagline)}" required></div>
+          <div class="field"><label>Chapter Label</label><input name="chapterLabel" value="${esc(c.chapterLabel)}" required></div>
+          <div class="field"><label>Campus Location</label><input name="campusLocation" value="${esc(c.campusLocation)}" required></div>
           <div class="field"><label>Event Date</label><input name="eventDate" value="${esc(c.eventDate)}" required></div>
           <div class="field"><label>Venue</label><input name="venue" value="${esc(c.venue)}" required></div>
           <div class="field"><label>Release Kicker Label</label><input name="releaseLabel" value="${esc(c.releaseLabel)}" required></div>
           <div class="field"><label>Release Date Text</label><input name="releaseDateText" value="${esc(c.releaseDateText)}" required></div>
           <div class="field"><label>Results Status Badge</label><input name="resultsStatus" value="${esc(c.resultsStatus)}" required></div>
-          <div class="field"><label>Campus Location</label><input name="campusLocation" value="${esc(c.campusLocation)}" required></div>
         </div>
-        <div class="field"><label>Problem Statements Intro</label><textarea name="problemsIntro">${esc(c.problemsIntro)}</textarea></div>
-        <div class="field"><label>Schedule Intro</label><textarea name="scheduleIntro">${esc(c.scheduleIntro)}</textarea></div>
+        <div class="field"><label>Problem Statements Intro</label><textarea name="problemsIntro" required>${esc(c.problemsIntro)}</textarea></div>
+        <div class="field"><label>Schedule Intro</label><textarea name="scheduleIntro" required>${esc(c.scheduleIntro)}</textarea></div>
         <div class="field"><label>Schedule Footer Note</label><input name="scheduleFooterNote" value="${esc(c.scheduleFooterNote)}"></div>
-        <div class="field"><label>Results Intro</label><textarea name="resultsIntro">${esc(c.resultsIntro)}</textarea></div>
+        <div class="field"><label>Results Intro</label><textarea name="resultsIntro" required>${esc(c.resultsIntro)}</textarea></div>
       </form>`;
   }
 
   function renderProblems() {
     const tracks = state.problems.tracks;
+    const hasTracks = tracks.length > 0;
     const trackOptions = tracks
       .map((t) => `<option value="${t.id}">Track ${esc(t.num)} — ${esc(t.name)}</option>`)
       .join('');
@@ -171,9 +229,10 @@
           <div>
             <span class="mono muted" style="font-size:12px">TRACK ${esc(t.num)}</span>
             <h3>${esc(t.name)}</h3>
+            ${t.description ? `<p class="muted" style="margin:6px 0 0;font-size:14px">${esc(t.description)}</p>` : ''}
           </div>
           <div class="item-row-actions">
-            <button class="btn btn-sm" data-rename-track="${t.id}" data-track-name="${esc(t.name)}">RENAME</button>
+            <button class="btn btn-sm" data-edit-track="${t.id}">EDIT TRACK</button>
             <button class="btn btn-sm btn-danger" data-delete-track="${t.id}">DELETE TRACK</button>
           </div>
         </div>
@@ -188,11 +247,12 @@
                 <div style="flex:1;min-width:260px">
                   <span class="mono" style="font-size:12px">${esc(s.code)}</span>
                   <h4 class="display" style="margin:4px 0 6px;font-size:20px">${esc(s.title)}</h4>
-                  <p class="muted" style="margin:0;font-size:14px;line-height:1.5">${esc(s.body)}</p>
-                  ${s.constraints ? `<p class="muted" style="margin:6px 0 0;font-size:13px"><strong>Constraints:</strong> ${esc(s.constraints)}</p>` : ''}
-                  ${s.evaluationNotes ? `<p class="muted" style="margin:4px 0 0;font-size:13px"><strong>Evaluation:</strong> ${esc(s.evaluationNotes)}</p>` : ''}
+                  <p class="muted" style="margin:0;font-size:14px;line-height:1.5;white-space:pre-line">${esc(s.body)}</p>
+                  ${s.constraints ? `<p class="muted" style="margin:6px 0 0;font-size:13px;white-space:pre-line"><strong>Constraints:</strong> ${esc(s.constraints)}</p>` : ''}
+                  ${s.evaluationNotes ? `<p class="muted" style="margin:4px 0 0;font-size:13px;white-space:pre-line"><strong>Evaluation:</strong> ${esc(s.evaluationNotes)}</p>` : ''}
                 </div>
                 <div class="item-row-actions">
+                  <button class="btn btn-sm" data-edit-stmt="${s.dbId}">EDIT</button>
                   <button class="btn btn-sm btn-danger" data-delete-stmt="${s.dbId}">DELETE</button>
                 </div>
               </div>`
@@ -216,15 +276,16 @@
 
         <form id="add-stmt-form" class="panel" style="margin-top:0">
           <div class="panel-head"><h3>Add Problem Statement</h3></div>
+          ${!hasTracks ? '<p class="muted" style="margin:0 0 12px">Create a track first before adding statements.</p>' : ''}
           <div class="form-grid">
             <div class="field"><label>Code (e.g. PS-05)</label><input name="code" required placeholder="PS-05"></div>
-            <div class="field"><label>Track</label><select name="trackId" required>${trackOptions}</select></div>
+            <div class="field"><label>Track</label><select name="trackId" required ${!hasTracks ? 'disabled' : ''}>${trackOptions}</select></div>
           </div>
           <div class="field"><label>Title</label><input name="title" required placeholder="Statement title"></div>
           <div class="field"><label>Full Description</label><textarea name="body" required></textarea></div>
-          <div class="field"><label>Constraints (optional)</label><input name="constraints"></div>
-          <div class="field"><label>Evaluation Notes (optional)</label><input name="evaluationNotes"></div>
-          <button type="submit" class="btn btn-primary">CREATE STATEMENT</button>
+          <div class="field"><label>Constraints (optional)</label><textarea name="constraints" style="min-height:64px"></textarea></div>
+          <div class="field"><label>Evaluation Notes (optional)</label><textarea name="evaluationNotes" style="min-height:64px"></textarea></div>
+          <button type="submit" class="btn btn-primary" ${!hasTracks ? 'disabled' : ''}>CREATE STATEMENT</button>
         </form>
       </div>
       ${tracksList}`;
@@ -232,6 +293,7 @@
 
   function renderSchedule() {
     const days = state.schedule.days;
+    const hasDays = days.length > 0;
     const dayOptions = days
       .map((d) => `<option value="${d.id}">Day ${esc(d.num)} — ${esc(d.name)}</option>`)
       .join('');
@@ -245,22 +307,32 @@
             <span class="mono muted" style="font-size:12px">DAY ${esc(d.num)} / ${esc(d.dateLabel)}</span>
             <h3>${esc(d.name)} — ${esc(d.summary)}</h3>
           </div>
-          <button class="btn btn-sm btn-danger" data-delete-day="${d.id}">DELETE DAY</button>
+          <div class="item-row-actions">
+            <button class="btn btn-sm" data-edit-day="${d.id}">EDIT DAY</button>
+            <button class="btn btn-sm btn-danger" data-delete-day="${d.id}">DELETE DAY</button>
+          </div>
         </div>
         <div class="item-list">
-          ${d.items
-            .map(
-              (item) => `
+          ${
+            d.items.length === 0
+              ? '<p class="muted">No timeline items for this day yet.</p>'
+              : d.items
+                  .map(
+                    (item) => `
             <div class="item-row">
-              <div>
+              <div style="flex:1;min-width:220px">
                 <span class="mono muted" style="font-size:13px">${esc(item.time)}</span>
                 <div class="display" style="font-size:19px;font-weight:500">${esc(item.title)}</div>
-                <div class="muted" style="font-size:14px">${esc(item.note)}</div>
+                <div class="muted" style="font-size:14px;white-space:pre-line">${esc(item.note)}</div>
               </div>
-              <button class="btn btn-sm btn-danger" data-delete-sched-item="${item.id}">DELETE</button>
+              <div class="item-row-actions">
+                <button class="btn btn-sm" data-edit-sched-item="${item.id}">EDIT</button>
+                <button class="btn btn-sm btn-danger" data-delete-sched-item="${item.id}">DELETE</button>
+              </div>
             </div>`
-            )
-            .join('')}
+                  )
+                  .join('')
+          }
         </div>
       </div>`
       )
@@ -281,13 +353,14 @@
 
         <form id="add-sched-item-form" class="panel" style="margin-top:0">
           <div class="panel-head"><h3>Add Schedule Item</h3></div>
+          ${!hasDays ? '<p class="muted" style="margin:0 0 12px">Create a schedule day first.</p>' : ''}
           <div class="form-grid">
-            <div class="field"><label>Day</label><select name="dayId" required>${dayOptions}</select></div>
+            <div class="field"><label>Day</label><select name="dayId" required ${!hasDays ? 'disabled' : ''}>${dayOptions}</select></div>
             <div class="field"><label>Time</label><input name="time" required placeholder="09:00 AM"></div>
           </div>
           <div class="field"><label>Event Title</label><input name="title" required placeholder="Opening keynote"></div>
           <div class="field"><label>Note</label><input name="note" placeholder="Main auditorium"></div>
-          <button type="submit" class="btn btn-primary">ADD TIMELINE ITEM</button>
+          <button type="submit" class="btn btn-primary" ${!hasDays ? 'disabled' : ''}>ADD TIMELINE ITEM</button>
         </form>
       </div>
       ${daysList}`;
@@ -327,12 +400,15 @@
             ${s.screenshotUrl ? `<img src="${esc(s.screenshotUrl)}" style="width:100%;height:100%;object-fit:cover">` : '<span class="mono muted" style="font-size:10px">NO IMG</span>'}
           </div>
           <div>
-            <span class="mono muted" style="font-size:12px">${esc(s.label)}</span>
+            <span class="mono muted" style="font-size:12px">${esc(s.label)}${s.trackName ? ` / ${esc(s.trackName)}` : ''}</span>
             <div class="display" style="font-size:20px;font-weight:500">${esc(s.title)}</div>
             <div class="muted" style="font-size:14px">${esc(s.team)}</div>
           </div>
         </div>
-        <button class="btn btn-sm btn-danger" data-delete-showcase="${s.id}">DELETE</button>
+        <div class="item-row-actions">
+          <button class="btn btn-sm" data-edit-showcase="${s.id}">EDIT</button>
+          <button class="btn btn-sm btn-danger" data-delete-showcase="${s.id}">DELETE</button>
+        </div>
       </div>`
       )
       .join('');
@@ -347,9 +423,14 @@
           <div class="field"><label>Label (e.g. PROJECT 04)</label><input name="label" required placeholder="PROJECT 04"></div>
           <div class="field"><label>Project Title</label><input name="title" required></div>
           <div class="field"><label>Team Name</label><input name="teamName" required></div>
-          <div class="field"><label>Upload Screenshot (PNG/JPG/WEBP)</label><input type="file" id="showcase-file" accept="image/png,image/jpeg,image/webp,image/gif"></div>
+          <div class="field"><label>Track (optional)</label><input name="trackName" placeholder="Applied AI"></div>
+          <div class="field"><label>Demo URL (optional)</label><input name="demoUrl" placeholder="https://..."></div>
+          <div class="field"><label>Repo URL (optional)</label><input name="repoUrl" placeholder="https://github.com/..."></div>
         </div>
-        <div class="field"><label>Screenshot URL (auto-filled after upload or paste URL)</label><input name="screenshotUrl" id="showcase-url" placeholder="/uploads/..."></div>
+        <div class="form-grid">
+          <div class="field"><label>Upload Screenshot (PNG/JPG/WEBP, max 4 MB)</label><input type="file" id="showcase-file" accept="image/png,image/jpeg,image/webp,image/gif"></div>
+          <div class="field"><label>Screenshot URL (auto-filled after upload or paste URL)</label><input name="screenshotUrl" id="showcase-url" placeholder="/uploads/..."></div>
+        </div>
         <div class="field"><label>Short Description</label><textarea name="description"></textarea></div>
         <button type="submit" class="btn btn-primary">ADD SHOWCASE PROJECT</button>
       </form>
@@ -400,12 +481,15 @@
             .map(
               (s) => `
             <div class="item-row">
-              <div style="flex:1">
+              <div style="flex:1;min-width:220px">
                 <span class="mono muted" style="font-size:12px">${esc(s.num)}</span>
                 <div class="display" style="font-size:19px;font-weight:500">${esc(s.heading)}</div>
-                <div class="muted" style="font-size:14px">${esc(s.body)}</div>
+                <div class="muted" style="font-size:14px;white-space:pre-line">${esc(s.body)}</div>
               </div>
-              <button class="btn btn-sm btn-danger" data-delete-brief="${s.id}">DELETE</button>
+              <div class="item-row-actions">
+                <button class="btn btn-sm" data-edit-brief="${s.id}">EDIT</button>
+                <button class="btn btn-sm btn-danger" data-delete-brief="${s.id}">DELETE</button>
+              </div>
             </div>`
             )
             .join('')}
@@ -419,12 +503,15 @@
             .map(
               (item) => `
             <div class="item-row">
-              <div style="flex:1">
+              <div style="flex:1;min-width:220px">
                 <span class="mono muted" style="font-size:12px">${esc(item.category.toUpperCase())}</span>
                 <div class="display" style="font-size:19px;font-weight:500">${esc(item.question)}</div>
-                <div class="muted" style="font-size:14px">${esc(item.answer)}</div>
+                <div class="muted" style="font-size:14px;white-space:pre-line">${esc(item.answer)}</div>
               </div>
-              <button class="btn btn-sm btn-danger" data-delete-faq="${item.id}">DELETE</button>
+              <div class="item-row-actions">
+                <button class="btn btn-sm" data-edit-faq="${item.id}">EDIT</button>
+                <button class="btn btn-sm btn-danger" data-delete-faq="${item.id}">DELETE</button>
+              </div>
             </div>`
             )
             .join('')}
@@ -435,9 +522,10 @@
   function renderAccount() {
     return `
       <form id="pw-form" class="panel" style="max-width:520px">
-        <div class="panel-head"><h3>Change Admin Password</h3></div>
-        <div class="field"><label>Current Password</label><input type="password" name="currentPassword" required></div>
-        <div class="field"><label>New Password (min 8 chars)</label><input type="password" name="newPassword" minlength="8" required></div>
+        <div class="panel-head"><h3>Change Organizer Password</h3></div>
+        <div class="field"><label>Current Password</label><input type="password" name="currentPassword" autocomplete="off" required></div>
+        <div class="field"><label>New Password (min 8 chars)</label><input type="password" name="newPassword" autocomplete="off" minlength="8" required></div>
+        <div class="field"><label>Confirm New Password</label><input type="password" name="confirmPassword" autocomplete="off" minlength="8" required></div>
         <button type="submit" class="btn btn-primary">UPDATE PASSWORD</button>
       </form>`;
   }
@@ -447,113 +535,211 @@
 
     const toggleProblemsBtn = document.getElementById('btn-toggle-problems');
     if (toggleProblemsBtn) {
-      toggleProblemsBtn.addEventListener('click', async () => {
-        try {
-          await api('/api/admin/toggles/release-problems', {
-            method: 'POST',
-            body: { released: !state.config.problemsReleased },
-          });
-          showToast(state.config.problemsReleased ? 'Problem statements reverted to TBA' : 'Problem statements released!');
-          await loadAllData();
-        } catch (err) {
-          showToast(err.message, true);
-        }
-      });
+      toggleProblemsBtn.addEventListener('click', () =>
+        withBusy(toggleProblemsBtn, 'UPDATING...', async () => {
+          try {
+            const next = !state.config.problemsReleased;
+            await api('/api/admin/toggles/release-problems', {
+              method: 'POST',
+              body: { released: next },
+            });
+            showToast(next ? 'Problem statements released live!' : 'Problem statements reverted to TBA');
+            await loadAllData();
+          } catch (err) {
+            showToast(err.message, true);
+          }
+        })
+      );
     }
 
     const toggleResultsBtn = document.getElementById('btn-toggle-results');
     if (toggleResultsBtn) {
-      toggleResultsBtn.addEventListener('click', async () => {
-        try {
-          const next = !state.config.resultsPublished;
-          await api('/api/admin/toggles/publish-results', {
-            method: 'POST',
-            body: { published: next, resultsStatus: next ? 'PUBLISHED' : 'TO BE ANNOUNCED' },
-          });
-          showToast(next ? 'Results published!' : 'Results hidden');
-          await loadAllData();
-        } catch (err) {
-          showToast(err.message, true);
-        }
-      });
+      toggleResultsBtn.addEventListener('click', () =>
+        withBusy(toggleResultsBtn, 'UPDATING...', async () => {
+          try {
+            const next = !state.config.resultsPublished;
+            await api('/api/admin/toggles/publish-results', {
+              method: 'POST',
+              body: { published: next, resultsStatus: next ? 'PUBLISHED' : 'TO BE ANNOUNCED' },
+            });
+            showToast(next ? 'Results published live!' : 'Results hidden');
+            await loadAllData();
+          } catch (err) {
+            showToast(err.message, true);
+          }
+        })
+      );
     }
 
     const toggleShowcaseBtn = document.getElementById('btn-toggle-showcase');
     if (toggleShowcaseBtn) {
-      toggleShowcaseBtn.addEventListener('click', async () => {
-        try {
-          await api('/api/admin/config', {
-            method: 'PATCH',
-            body: { showShowcase: !state.config.showShowcase },
-          });
-          showToast('Showcase visibility updated');
-          await loadAllData();
-        } catch (err) {
-          showToast(err.message, true);
-        }
-      });
+      toggleShowcaseBtn.addEventListener('click', () =>
+        withBusy(toggleShowcaseBtn, 'UPDATING...', async () => {
+          try {
+            await api('/api/admin/config', {
+              method: 'PATCH',
+              body: { showShowcase: !state.config.showShowcase },
+            });
+            showToast('Showcase visibility updated');
+            await loadAllData();
+          } catch (err) {
+            showToast(err.message, true);
+          }
+        })
+      );
     }
 
     const configForm = document.getElementById('config-form');
     if (configForm) {
-      configForm.addEventListener('submit', async (e) => {
+      configForm.addEventListener('submit', (e) => {
         e.preventDefault();
-        try {
-          const body = Object.fromEntries(new FormData(configForm).entries());
-          await api('/api/admin/config', { method: 'PATCH', body });
-          showToast('Event settings saved');
-          await loadAllData();
-        } catch (err) {
-          showToast(err.message, true);
-        }
+        const btn = configForm.querySelector('button[type="submit"]');
+        void withBusy(btn, 'SAVING...', async () => {
+          try {
+            const body = Object.fromEntries(new FormData(configForm).entries());
+            await api('/api/admin/config', { method: 'PATCH', body });
+            showToast('Event settings saved');
+            await loadAllData();
+          } catch (err) {
+            showToast(err.message, true);
+          }
+        });
       });
     }
 
     const addTrackForm = document.getElementById('add-track-form');
     if (addTrackForm) {
-      addTrackForm.addEventListener('submit', async (e) => {
+      addTrackForm.addEventListener('submit', (e) => {
         e.preventDefault();
-        try {
-          const body = Object.fromEntries(new FormData(addTrackForm).entries());
-          await api('/api/admin/tracks', { method: 'POST', body });
-          showToast('Track created');
-          await loadAllData();
-        } catch (err) {
-          showToast(err.message, true);
-        }
+        const btn = addTrackForm.querySelector('button[type="submit"]');
+        void withBusy(btn, 'CREATING...', async () => {
+          try {
+            const body = Object.fromEntries(new FormData(addTrackForm).entries());
+            await api('/api/admin/tracks', { method: 'POST', body });
+            showToast('Track created');
+            await loadAllData();
+          } catch (err) {
+            showToast(err.message, true);
+          }
+        });
       });
     }
 
     const addStmtForm = document.getElementById('add-stmt-form');
     if (addStmtForm) {
-      addStmtForm.addEventListener('submit', async (e) => {
+      addStmtForm.addEventListener('submit', (e) => {
         e.preventDefault();
-        try {
-          const raw = Object.fromEntries(new FormData(addStmtForm).entries());
-          raw.trackId = Number(raw.trackId);
-          await api('/api/admin/statements', { method: 'POST', body: raw });
-          showToast('Problem statement created');
-          await loadAllData();
-        } catch (err) {
-          showToast(err.message, true);
-        }
+        const btn = addStmtForm.querySelector('button[type="submit"]');
+        void withBusy(btn, 'CREATING...', async () => {
+          try {
+            const raw = Object.fromEntries(new FormData(addStmtForm).entries());
+            raw.trackId = Number(raw.trackId);
+            await api('/api/admin/statements', { method: 'POST', body: raw });
+            showToast('Problem statement created');
+            await loadAllData();
+          } catch (err) {
+            showToast(err.message, true);
+          }
+        });
       });
     }
 
-    root.querySelectorAll('[data-rename-track]').forEach((btn) => {
-      btn.addEventListener('click', async () => {
-        const nextName = window.prompt('New track name:', btn.dataset.trackName);
-        if (!nextName || !nextName.trim()) return;
-        try {
-          await api(`/api/admin/tracks/${btn.dataset.renameTrack}`, {
-            method: 'PATCH',
-            body: { name: nextName.trim() },
-          });
-          showToast('Track renamed');
-          await loadAllData();
-        } catch (err) {
-          showToast(err.message, true);
+    // Edit Track modal
+    root.querySelectorAll('[data-edit-track]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const track = state.problems.tracks.find((t) => String(t.id) === btn.dataset.editTrack);
+        if (!track) return;
+        openModal(
+          `Edit Track ${track.num}`,
+          `<form id="modal-edit-form">
+            <div class="form-grid">
+              <div class="field"><label>Track Number</label><input name="num" value="${esc(track.num)}" required></div>
+              <div class="field"><label>Order</label><input type="number" min="0" name="sortOrder" value="${esc(track.sortOrder)}" required></div>
+            </div>
+            <div class="field"><label>Track Name</label><input name="name" value="${esc(track.name)}" required></div>
+            <div class="field"><label>Description</label><textarea name="description">${esc(track.description)}</textarea></div>
+            <div class="modal-actions">
+              <button type="submit" class="btn btn-primary">SAVE CHANGES</button>
+            </div>
+          </form>`,
+          (bodyEl) => {
+            const form = bodyEl.querySelector('#modal-edit-form');
+            form.addEventListener('submit', (e) => {
+              e.preventDefault();
+              const submitBtn = form.querySelector('button[type="submit"]');
+              void withBusy(submitBtn, 'SAVING...', async () => {
+                try {
+                  const data = Object.fromEntries(new FormData(form).entries());
+                  data.sortOrder = Number(data.sortOrder);
+                  await api(`/api/admin/tracks/${track.id}`, { method: 'PATCH', body: data });
+                  closeModal();
+                  showToast('Track updated');
+                  await loadAllData();
+                } catch (err) {
+                  showToast(err.message, true);
+                }
+              });
+            });
+          }
+        );
+      });
+    });
+
+    // Edit Statement modal
+    root.querySelectorAll('[data-edit-stmt]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        let stmt = null;
+        for (const t of state.problems.tracks) {
+          const found = t.statements.find((s) => String(s.dbId) === btn.dataset.editStmt);
+          if (found) {
+            stmt = found;
+            break;
+          }
         }
+        if (!stmt) return;
+        const trackOpts = state.problems.tracks
+          .map(
+            (t) =>
+              `<option value="${t.id}" ${t.id === stmt.trackId ? 'selected' : ''}>Track ${esc(t.num)} — ${esc(t.name)}</option>`
+          )
+          .join('');
+        openModal(
+          `Edit ${stmt.code}`,
+          `<form id="modal-edit-form">
+            <div class="form-grid">
+              <div class="field"><label>Code</label><input name="code" value="${esc(stmt.code)}" required></div>
+              <div class="field"><label>Track</label><select name="trackId" required>${trackOpts}</select></div>
+              <div class="field"><label>Order</label><input type="number" min="0" name="sortOrder" value="${esc(stmt.sortOrder)}" required></div>
+            </div>
+            <div class="field"><label>Title</label><input name="title" value="${esc(stmt.title)}" required></div>
+            <div class="field"><label>Full Description</label><textarea name="body" required>${esc(stmt.body)}</textarea></div>
+            <div class="field"><label>Constraints</label><textarea name="constraints" style="min-height:64px">${esc(stmt.constraints)}</textarea></div>
+            <div class="field"><label>Evaluation Notes</label><textarea name="evaluationNotes" style="min-height:64px">${esc(stmt.evaluationNotes)}</textarea></div>
+            <div class="modal-actions">
+              <button type="submit" class="btn btn-primary">SAVE CHANGES</button>
+            </div>
+          </form>`,
+          (bodyEl) => {
+            const form = bodyEl.querySelector('#modal-edit-form');
+            form.addEventListener('submit', (e) => {
+              e.preventDefault();
+              const submitBtn = form.querySelector('button[type="submit"]');
+              void withBusy(submitBtn, 'SAVING...', async () => {
+                try {
+                  const data = Object.fromEntries(new FormData(form).entries());
+                  data.trackId = Number(data.trackId);
+                  data.sortOrder = Number(data.sortOrder);
+                  await api(`/api/admin/statements/${stmt.dbId}`, { method: 'PATCH', body: data });
+                  closeModal();
+                  showToast('Problem statement updated');
+                  await loadAllData();
+                } catch (err) {
+                  showToast(err.message, true);
+                }
+              });
+            });
+          }
+        );
       });
     });
 
@@ -572,6 +758,7 @@
 
     root.querySelectorAll('[data-delete-stmt]').forEach((btn) => {
       btn.addEventListener('click', async () => {
+        if (!window.confirm('Delete this problem statement?')) return;
         try {
           await api(`/api/admin/statements/${btn.dataset.deleteStmt}`, { method: 'DELETE' });
           showToast('Statement deleted');
@@ -584,35 +771,139 @@
 
     const addDayForm = document.getElementById('add-day-form');
     if (addDayForm) {
-      addDayForm.addEventListener('submit', async (e) => {
+      addDayForm.addEventListener('submit', (e) => {
         e.preventDefault();
-        try {
-          const body = Object.fromEntries(new FormData(addDayForm).entries());
-          await api('/api/admin/schedule/days', { method: 'POST', body });
-          showToast('Schedule day created');
-          await loadAllData();
-        } catch (err) {
-          showToast(err.message, true);
-        }
+        const btn = addDayForm.querySelector('button[type="submit"]');
+        void withBusy(btn, 'CREATING...', async () => {
+          try {
+            const body = Object.fromEntries(new FormData(addDayForm).entries());
+            await api('/api/admin/schedule/days', { method: 'POST', body });
+            showToast('Schedule day created');
+            await loadAllData();
+          } catch (err) {
+            showToast(err.message, true);
+          }
+        });
       });
     }
 
     const addSchedItemForm = document.getElementById('add-sched-item-form');
     if (addSchedItemForm) {
-      addSchedItemForm.addEventListener('submit', async (e) => {
+      addSchedItemForm.addEventListener('submit', (e) => {
         e.preventDefault();
-        try {
-          const raw = Object.fromEntries(new FormData(addSchedItemForm).entries());
-          const dayId = raw.dayId;
-          delete raw.dayId;
-          await api(`/api/admin/schedule/days/${dayId}/items`, { method: 'POST', body: raw });
-          showToast('Schedule item added');
-          await loadAllData();
-        } catch (err) {
-          showToast(err.message, true);
-        }
+        const btn = addSchedItemForm.querySelector('button[type="submit"]');
+        void withBusy(btn, 'ADDING...', async () => {
+          try {
+            const raw = Object.fromEntries(new FormData(addSchedItemForm).entries());
+            const dayId = raw.dayId;
+            delete raw.dayId;
+            await api(`/api/admin/schedule/days/${dayId}/items`, { method: 'POST', body: raw });
+            showToast('Schedule item added');
+            await loadAllData();
+          } catch (err) {
+            showToast(err.message, true);
+          }
+        });
       });
     }
+
+    // Edit Schedule Day modal
+    root.querySelectorAll('[data-edit-day]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const day = state.schedule.days.find((d) => String(d.id) === btn.dataset.editDay);
+        if (!day) return;
+        openModal(
+          `Edit Day ${day.num}`,
+          `<form id="modal-edit-form">
+            <div class="form-grid">
+              <div class="field"><label>Day Num</label><input name="num" value="${esc(day.num)}" required></div>
+              <div class="field"><label>Day Name</label><input name="name" value="${esc(day.name)}" required></div>
+              <div class="field"><label>Date Label</label><input name="dateLabel" value="${esc(day.dateLabel)}" required></div>
+              <div class="field"><label>Order</label><input type="number" min="0" name="sortOrder" value="${esc(day.sortOrder)}" required></div>
+            </div>
+            <div class="field"><label>Summary</label><input name="summary" value="${esc(day.summary)}" required></div>
+            <div class="modal-actions">
+              <button type="submit" class="btn btn-primary">SAVE CHANGES</button>
+            </div>
+          </form>`,
+          (bodyEl) => {
+            const form = bodyEl.querySelector('#modal-edit-form');
+            form.addEventListener('submit', (e) => {
+              e.preventDefault();
+              const submitBtn = form.querySelector('button[type="submit"]');
+              void withBusy(submitBtn, 'SAVING...', async () => {
+                try {
+                  const data = Object.fromEntries(new FormData(form).entries());
+                  data.sortOrder = Number(data.sortOrder);
+                  await api(`/api/admin/schedule/days/${day.id}`, { method: 'PATCH', body: data });
+                  closeModal();
+                  showToast('Schedule day updated');
+                  await loadAllData();
+                } catch (err) {
+                  showToast(err.message, true);
+                }
+              });
+            });
+          }
+        );
+      });
+    });
+
+    // Edit Schedule Item modal
+    root.querySelectorAll('[data-edit-sched-item]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        let item = null;
+        for (const d of state.schedule.days) {
+          const found = d.items.find((i) => String(i.id) === btn.dataset.editSchedItem);
+          if (found) {
+            item = found;
+            break;
+          }
+        }
+        if (!item) return;
+        const dayOpts = state.schedule.days
+          .map(
+            (d) =>
+              `<option value="${d.id}" ${d.id === item.dayId ? 'selected' : ''}>Day ${esc(d.num)} — ${esc(d.name)}</option>`
+          )
+          .join('');
+        openModal(
+          'Edit Schedule Item',
+          `<form id="modal-edit-form">
+            <div class="form-grid">
+              <div class="field"><label>Day</label><select name="dayId" required>${dayOpts}</select></div>
+              <div class="field"><label>Time</label><input name="time" value="${esc(item.time)}" required></div>
+              <div class="field"><label>Order</label><input type="number" min="0" name="sortOrder" value="${esc(item.sortOrder)}" required></div>
+            </div>
+            <div class="field"><label>Title</label><input name="title" value="${esc(item.title)}" required></div>
+            <div class="field"><label>Note</label><textarea name="note">${esc(item.note)}</textarea></div>
+            <div class="modal-actions">
+              <button type="submit" class="btn btn-primary">SAVE CHANGES</button>
+            </div>
+          </form>`,
+          (bodyEl) => {
+            const form = bodyEl.querySelector('#modal-edit-form');
+            form.addEventListener('submit', (e) => {
+              e.preventDefault();
+              const submitBtn = form.querySelector('button[type="submit"]');
+              void withBusy(submitBtn, 'SAVING...', async () => {
+                try {
+                  const data = Object.fromEntries(new FormData(form).entries());
+                  data.dayId = Number(data.dayId);
+                  data.sortOrder = Number(data.sortOrder);
+                  await api(`/api/admin/schedule/items/${item.id}`, { method: 'PATCH', body: data });
+                  closeModal();
+                  showToast('Schedule item updated');
+                  await loadAllData();
+                } catch (err) {
+                  showToast(err.message, true);
+                }
+              });
+            });
+          }
+        );
+      });
+    });
 
     root.querySelectorAll('[data-delete-day]').forEach((btn) => {
       btn.addEventListener('click', async () => {
@@ -640,17 +931,20 @@
     });
 
     root.querySelectorAll('.podium-form').forEach((form) => {
-      form.addEventListener('submit', async (e) => {
+      form.addEventListener('submit', (e) => {
         e.preventDefault();
-        try {
-          const rank = form.dataset.rank;
-          const body = Object.fromEntries(new FormData(form).entries());
-          await api(`/api/admin/results/podium/${rank}`, { method: 'PUT', body });
-          showToast(`Podium #${rank} saved`);
-          await loadAllData();
-        } catch (err) {
-          showToast(err.message, true);
-        }
+        const btn = form.querySelector('button[type="submit"]');
+        void withBusy(btn, 'SAVING...', async () => {
+          try {
+            const rank = form.dataset.rank;
+            const body = Object.fromEntries(new FormData(form).entries());
+            await api(`/api/admin/results/podium/${rank}`, { method: 'PUT', body });
+            showToast(`Podium #${rank} saved`);
+            await loadAllData();
+          } catch (err) {
+            showToast(err.message, true);
+          }
+        });
       });
     });
 
@@ -660,37 +954,101 @@
         const file = fileInput.files?.[0];
         if (!file) return;
         try {
-          const fd = new FormData();
-          fd.append('file', file);
-          const uploaded = await api('/api/admin/uploads/screenshot', {
-            method: 'POST',
-            body: fd,
-          });
+          showToast('Uploading screenshot...');
+          const uploaded = await uploadImageFile(file);
           document.getElementById('showcase-url').value = uploaded.url;
           showToast('Screenshot uploaded');
         } catch (err) {
           showToast(err.message, true);
+          fileInput.value = '';
         }
       });
     }
 
     const addShowcaseForm = document.getElementById('add-showcase-form');
     if (addShowcaseForm) {
-      addShowcaseForm.addEventListener('submit', async (e) => {
+      addShowcaseForm.addEventListener('submit', (e) => {
         e.preventDefault();
-        try {
-          const body = Object.fromEntries(new FormData(addShowcaseForm).entries());
-          await api('/api/admin/results/showcase', { method: 'POST', body });
-          showToast('Showcase project added');
-          await loadAllData();
-        } catch (err) {
-          showToast(err.message, true);
-        }
+        const btn = addShowcaseForm.querySelector('button[type="submit"]');
+        void withBusy(btn, 'ADDING...', async () => {
+          try {
+            const body = Object.fromEntries(new FormData(addShowcaseForm).entries());
+            await api('/api/admin/results/showcase', { method: 'POST', body });
+            showToast('Showcase project added');
+            await loadAllData();
+          } catch (err) {
+            showToast(err.message, true);
+          }
+        });
       });
     }
 
+    // Edit Showcase modal
+    root.querySelectorAll('[data-edit-showcase]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const proj = state.results.showcase.find((s) => String(s.id) === btn.dataset.editShowcase);
+        if (!proj) return;
+        openModal(
+          `Edit ${proj.label}`,
+          `<form id="modal-edit-form">
+            <div class="form-grid">
+              <div class="field"><label>Label</label><input name="label" value="${esc(proj.label)}" required></div>
+              <div class="field"><label>Order</label><input type="number" min="0" name="sortOrder" value="${esc(proj.sortOrder)}" required></div>
+              <div class="field"><label>Project Title</label><input name="title" value="${esc(proj.title)}" required></div>
+              <div class="field"><label>Team Name</label><input name="teamName" value="${esc(proj.team)}" required></div>
+              <div class="field"><label>Track</label><input name="trackName" value="${esc(proj.trackName)}"></div>
+              <div class="field"><label>Demo URL</label><input name="demoUrl" value="${esc(proj.demoUrl)}" placeholder="https://..."></div>
+              <div class="field"><label>Repo URL</label><input name="repoUrl" value="${esc(proj.repoUrl)}" placeholder="https://github.com/..."></div>
+            </div>
+            <div class="form-grid">
+              <div class="field"><label>Upload New Screenshot (max 4 MB)</label><input type="file" id="modal-showcase-file" accept="image/png,image/jpeg,image/webp,image/gif"></div>
+              <div class="field"><label>Screenshot URL</label><input name="screenshotUrl" id="modal-showcase-url" value="${esc(proj.screenshotUrl)}"></div>
+            </div>
+            <div class="field"><label>Description</label><textarea name="description">${esc(proj.description)}</textarea></div>
+            <div class="modal-actions">
+              <button type="submit" class="btn btn-primary">SAVE CHANGES</button>
+            </div>
+          </form>`,
+          (bodyEl) => {
+            const modalFile = bodyEl.querySelector('#modal-showcase-file');
+            modalFile.addEventListener('change', async () => {
+              const file = modalFile.files?.[0];
+              if (!file) return;
+              try {
+                showToast('Uploading screenshot...');
+                const uploaded = await uploadImageFile(file);
+                bodyEl.querySelector('#modal-showcase-url').value = uploaded.url;
+                showToast('Screenshot uploaded');
+              } catch (err) {
+                showToast(err.message, true);
+                modalFile.value = '';
+              }
+            });
+            const form = bodyEl.querySelector('#modal-edit-form');
+            form.addEventListener('submit', (e) => {
+              e.preventDefault();
+              const submitBtn = form.querySelector('button[type="submit"]');
+              void withBusy(submitBtn, 'SAVING...', async () => {
+                try {
+                  const data = Object.fromEntries(new FormData(form).entries());
+                  data.sortOrder = Number(data.sortOrder);
+                  await api(`/api/admin/results/showcase/${proj.id}`, { method: 'PATCH', body: data });
+                  closeModal();
+                  showToast('Showcase project updated');
+                  await loadAllData();
+                } catch (err) {
+                  showToast(err.message, true);
+                }
+              });
+            });
+          }
+        );
+      });
+    });
+
     root.querySelectorAll('[data-delete-showcase]').forEach((btn) => {
       btn.addEventListener('click', async () => {
+        if (!window.confirm('Delete this showcase project?')) return;
         try {
           await api(`/api/admin/results/showcase/${btn.dataset.deleteShowcase}`, { method: 'DELETE' });
           showToast('Showcase project deleted');
@@ -703,33 +1061,79 @@
 
     const briefHeaderForm = document.getElementById('brief-header-form');
     if (briefHeaderForm) {
-      briefHeaderForm.addEventListener('submit', async (e) => {
+      briefHeaderForm.addEventListener('submit', (e) => {
         e.preventDefault();
-        try {
-          const body = Object.fromEntries(new FormData(briefHeaderForm).entries());
-          await api('/api/admin/config', { method: 'PATCH', body });
-          showToast('Brief header saved');
-          await loadAllData();
-        } catch (err) {
-          showToast(err.message, true);
-        }
+        const btn = briefHeaderForm.querySelector('button[type="submit"]');
+        void withBusy(btn, 'SAVING...', async () => {
+          try {
+            const body = Object.fromEntries(new FormData(briefHeaderForm).entries());
+            await api('/api/admin/config', { method: 'PATCH', body });
+            showToast('Brief header saved');
+            await loadAllData();
+          } catch (err) {
+            showToast(err.message, true);
+          }
+        });
       });
     }
 
     const addBriefForm = document.getElementById('add-brief-form');
     if (addBriefForm) {
-      addBriefForm.addEventListener('submit', async (e) => {
+      addBriefForm.addEventListener('submit', (e) => {
         e.preventDefault();
-        try {
-          const body = Object.fromEntries(new FormData(addBriefForm).entries());
-          await api('/api/admin/brief/sections', { method: 'POST', body });
-          showToast('Brief section added');
-          await loadAllData();
-        } catch (err) {
-          showToast(err.message, true);
-        }
+        const btn = addBriefForm.querySelector('button[type="submit"]');
+        void withBusy(btn, 'ADDING...', async () => {
+          try {
+            const body = Object.fromEntries(new FormData(addBriefForm).entries());
+            await api('/api/admin/brief/sections', { method: 'POST', body });
+            showToast('Brief section added');
+            await loadAllData();
+          } catch (err) {
+            showToast(err.message, true);
+          }
+        });
       });
     }
+
+    root.querySelectorAll('[data-edit-brief]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const sec = state.brief.sections.find((s) => String(s.id) === btn.dataset.editBrief);
+        if (!sec) return;
+        openModal(
+          `Edit Brief Section ${sec.num}`,
+          `<form id="modal-edit-form">
+            <div class="form-grid">
+              <div class="field"><label>Number</label><input name="num" value="${esc(sec.num)}" required></div>
+              <div class="field"><label>Order</label><input type="number" min="0" name="sortOrder" value="${esc(sec.sortOrder)}" required></div>
+            </div>
+            <div class="field"><label>Heading</label><input name="heading" value="${esc(sec.heading)}" required></div>
+            <div class="field"><label>Body</label><textarea name="body" required>${esc(sec.body)}</textarea></div>
+            <div class="modal-actions">
+              <button type="submit" class="btn btn-primary">SAVE CHANGES</button>
+            </div>
+          </form>`,
+          (bodyEl) => {
+            const form = bodyEl.querySelector('#modal-edit-form');
+            form.addEventListener('submit', (e) => {
+              e.preventDefault();
+              const submitBtn = form.querySelector('button[type="submit"]');
+              void withBusy(submitBtn, 'SAVING...', async () => {
+                try {
+                  const data = Object.fromEntries(new FormData(form).entries());
+                  data.sortOrder = Number(data.sortOrder);
+                  await api(`/api/admin/brief/sections/${sec.id}`, { method: 'PATCH', body: data });
+                  closeModal();
+                  showToast('Brief section updated');
+                  await loadAllData();
+                } catch (err) {
+                  showToast(err.message, true);
+                }
+              });
+            });
+          }
+        );
+      });
+    });
 
     root.querySelectorAll('[data-delete-brief]').forEach((btn) => {
       btn.addEventListener('click', async () => {
@@ -745,18 +1149,61 @@
 
     const addFaqForm = document.getElementById('add-faq-form');
     if (addFaqForm) {
-      addFaqForm.addEventListener('submit', async (e) => {
+      addFaqForm.addEventListener('submit', (e) => {
         e.preventDefault();
-        try {
-          const body = Object.fromEntries(new FormData(addFaqForm).entries());
-          await api('/api/admin/faqs', { method: 'POST', body });
-          showToast('FAQ added');
-          await loadAllData();
-        } catch (err) {
-          showToast(err.message, true);
-        }
+        const btn = addFaqForm.querySelector('button[type="submit"]');
+        void withBusy(btn, 'ADDING...', async () => {
+          try {
+            const body = Object.fromEntries(new FormData(addFaqForm).entries());
+            await api('/api/admin/faqs', { method: 'POST', body });
+            showToast('FAQ added');
+            await loadAllData();
+          } catch (err) {
+            showToast(err.message, true);
+          }
+        });
       });
     }
+
+    root.querySelectorAll('[data-edit-faq]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const faq = state.faqs.items.find((f) => String(f.id) === btn.dataset.editFaq);
+        if (!faq) return;
+        openModal(
+          'Edit FAQ',
+          `<form id="modal-edit-form">
+            <div class="form-grid">
+              <div class="field"><label>Category</label><input name="category" value="${esc(faq.category)}" required></div>
+              <div class="field"><label>Order</label><input type="number" min="0" name="sortOrder" value="${esc(faq.sortOrder)}" required></div>
+            </div>
+            <div class="field"><label>Question</label><input name="question" value="${esc(faq.question)}" required></div>
+            <div class="field"><label>Answer</label><textarea name="answer" required>${esc(faq.answer)}</textarea></div>
+            <div class="modal-actions">
+              <button type="submit" class="btn btn-primary">SAVE CHANGES</button>
+            </div>
+          </form>`,
+          (bodyEl) => {
+            const form = bodyEl.querySelector('#modal-edit-form');
+            form.addEventListener('submit', (e) => {
+              e.preventDefault();
+              const submitBtn = form.querySelector('button[type="submit"]');
+              void withBusy(submitBtn, 'SAVING...', async () => {
+                try {
+                  const data = Object.fromEntries(new FormData(form).entries());
+                  data.sortOrder = Number(data.sortOrder);
+                  await api(`/api/admin/faqs/${faq.id}`, { method: 'PATCH', body: data });
+                  closeModal();
+                  showToast('FAQ updated');
+                  await loadAllData();
+                } catch (err) {
+                  showToast(err.message, true);
+                }
+              });
+            });
+          }
+        );
+      });
+    });
 
     root.querySelectorAll('[data-delete-faq]').forEach((btn) => {
       btn.addEventListener('click', async () => {
@@ -772,16 +1219,26 @@
 
     const pwForm = document.getElementById('pw-form');
     if (pwForm) {
-      pwForm.addEventListener('submit', async (e) => {
+      pwForm.addEventListener('submit', (e) => {
         e.preventDefault();
-        try {
-          const body = Object.fromEntries(new FormData(pwForm).entries());
-          await api('/api/admin/auth/change-password', { method: 'POST', body });
-          pwForm.reset();
-          showToast('Password updated');
-        } catch (err) {
-          showToast(err.message, true);
-        }
+        const btn = pwForm.querySelector('button[type="submit"]');
+        void withBusy(btn, 'UPDATING...', async () => {
+          try {
+            const raw = Object.fromEntries(new FormData(pwForm).entries());
+            if (raw.newPassword !== raw.confirmPassword) {
+              showToast('New password and confirmation do not match', true);
+              return;
+            }
+            await api('/api/admin/auth/change-password', {
+              method: 'POST',
+              body: { currentPassword: raw.currentPassword, newPassword: raw.newPassword },
+            });
+            pwForm.reset();
+            showToast('Password updated');
+          } catch (err) {
+            showToast(err.message, true);
+          }
+        });
       });
     }
   }
@@ -800,27 +1257,30 @@
     bindTabEvents();
   }
 
-  document.getElementById('login-form').addEventListener('submit', async (e) => {
+  document.getElementById('login-form').addEventListener('submit', (e) => {
     e.preventDefault();
     const errEl = document.getElementById('login-error');
     errEl.classList.add('hidden');
-    try {
-      const username = document.getElementById('login-username').value.trim();
-      const password = document.getElementById('login-password').value;
-      const res = await api('/api/admin/auth/login', {
-        method: 'POST',
-        body: { username, password },
-      });
-      token = res.token;
-      sessionStorage.setItem(TOKEN_KEY, token);
-      document.getElementById('login-username').value = '';
-      document.getElementById('login-password').value = '';
-      await loadAllData();
-      showToast('Signed in successfully');
-    } catch (err) {
-      errEl.textContent = err.message;
-      errEl.classList.remove('hidden');
-    }
+    const btn = document.getElementById('btn-login-submit');
+    void withBusy(btn, 'SIGNING IN...', async () => {
+      try {
+        const username = document.getElementById('login-username').value.trim();
+        const password = document.getElementById('login-password').value;
+        const res = await api('/api/admin/auth/login', {
+          method: 'POST',
+          body: { username, password },
+        });
+        token = res.token;
+        sessionStorage.setItem(TOKEN_KEY, token);
+        document.getElementById('login-username').value = '';
+        document.getElementById('login-password').value = '';
+        await loadAllData();
+        showToast('Signed in successfully');
+      } catch (err) {
+        errEl.textContent = err.message;
+        errEl.classList.remove('hidden');
+      }
+    });
   });
 
   document.getElementById('btn-logout').addEventListener('click', () => {

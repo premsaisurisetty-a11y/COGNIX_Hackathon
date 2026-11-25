@@ -3,10 +3,15 @@ import { z } from 'zod';
 const optionalUrl = z
   .string()
   .trim()
-  .refine(
-    (val) => val === '' || val.startsWith('/uploads/') || /^https?:\/\/.+/.test(val),
-    'Must be an empty string, /uploads/ path, or valid http(s) URL'
-  );
+  .refine((val) => {
+    if (val === '' || val.startsWith('/uploads/')) return true;
+    try {
+      const u = new URL(val);
+      return u.protocol === 'http:' || u.protocol === 'https:';
+    } catch {
+      return false;
+    }
+  }, 'Must be an empty string, /uploads/ path, or valid http(s) URL');
 
 export const loginSchema = z
   .object({
@@ -62,7 +67,7 @@ export const createTrackSchema = z.object({
   num: z.string().trim().min(1).max(16),
   name: z.string().trim().min(1).max(200),
   description: z.string().trim().max(2000).optional().default(''),
-  sortOrder: z.number().int().min(0).optional().default(0),
+  sortOrder: z.number().int().min(0).optional(),
 });
 
 export const updateTrackSchema = createTrackSchema.partial().refine(
@@ -77,7 +82,7 @@ export const createStatementSchema = z.object({
   body: z.string().trim().min(1).max(10000),
   constraints: z.string().trim().max(5000).optional().default(''),
   evaluationNotes: z.string().trim().max(5000).optional().default(''),
-  sortOrder: z.number().int().min(0).optional().default(0),
+  sortOrder: z.number().int().min(0).optional(),
 });
 
 export const updateStatementSchema = createStatementSchema.partial().refine(
@@ -90,7 +95,7 @@ export const createScheduleDaySchema = z.object({
   name: z.string().trim().min(1).max(100),
   dateLabel: z.string().trim().min(1).max(100),
   summary: z.string().trim().min(1).max(500),
-  sortOrder: z.number().int().min(0).optional().default(0),
+  sortOrder: z.number().int().min(0).optional(),
 });
 
 export const updateScheduleDaySchema = createScheduleDaySchema.partial().refine(
@@ -102,7 +107,7 @@ export const createScheduleItemSchema = z.object({
   time: z.string().trim().min(1).max(60),
   title: z.string().trim().min(1).max(200),
   note: z.string().trim().max(1000).optional().default(''),
-  sortOrder: z.number().int().min(0).optional().default(0),
+  sortOrder: z.number().int().min(0).optional(),
 });
 
 export const updateScheduleItemSchema = createScheduleItemSchema
@@ -131,7 +136,7 @@ export const createShowcaseSchema = z.object({
   screenshotUrl: optionalUrl.optional().default(''),
   demoUrl: optionalUrl.optional().default(''),
   repoUrl: optionalUrl.optional().default(''),
-  sortOrder: z.number().int().min(0).optional().default(0),
+  sortOrder: z.number().int().min(0).optional(),
 });
 
 export const updateShowcaseSchema = createShowcaseSchema.partial().refine(
@@ -143,7 +148,7 @@ export const createBriefSectionSchema = z.object({
   num: z.string().trim().min(1).max(16),
   heading: z.string().trim().min(1).max(200),
   body: z.string().trim().min(1).max(5000),
-  sortOrder: z.number().int().min(0).optional().default(0),
+  sortOrder: z.number().int().min(0).optional(),
 });
 
 export const updateBriefSectionSchema = createBriefSectionSchema.partial().refine(
@@ -155,7 +160,7 @@ export const createFaqSchema = z.object({
   question: z.string().trim().min(1).max(400),
   answer: z.string().trim().min(1).max(4000),
   category: z.string().trim().min(1).max(80).optional().default('General'),
-  sortOrder: z.number().int().min(0).optional().default(0),
+  sortOrder: z.number().int().min(0).optional(),
 });
 
 export const updateFaqSchema = createFaqSchema.partial().refine(

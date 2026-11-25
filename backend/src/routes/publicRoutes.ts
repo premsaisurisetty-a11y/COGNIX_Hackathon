@@ -5,9 +5,14 @@ import { asyncHandler } from '../utils/asyncHandler';
 export function createPublicRoutes(portalService: PortalService): Router {
   const router = Router();
 
+  const setEdgeCache = (res: import('express').Response) => {
+    res.setHeader('Cache-Control', 'public, max-age=10, s-maxage=10, stale-while-revalidate=30');
+  };
+
   router.get(
     '/health',
     asyncHandler(async (_req, res) => {
+      res.setHeader('Cache-Control', 'no-store');
       const config = await portalService.getConfig();
       res.json({
         status: 'ok',
@@ -20,6 +25,7 @@ export function createPublicRoutes(portalService: PortalService): Router {
   router.get(
     '/portal',
     asyncHandler(async (_req, res) => {
+      setEdgeCache(res);
       res.json(await portalService.getFullPortal());
     })
   );
@@ -27,6 +33,7 @@ export function createPublicRoutes(portalService: PortalService): Router {
   router.get(
     '/config',
     asyncHandler(async (_req, res) => {
+      setEdgeCache(res);
       res.json(await portalService.getConfig());
     })
   );
@@ -34,6 +41,7 @@ export function createPublicRoutes(portalService: PortalService): Router {
   router.get(
     '/problems',
     asyncHandler(async (req, res) => {
+      setEdgeCache(res);
       const track = typeof req.query.track === 'string' ? req.query.track : undefined;
       res.json(await portalService.getProblems({ trackFilter: track, includeUnpublished: false }));
     })
@@ -42,6 +50,7 @@ export function createPublicRoutes(portalService: PortalService): Router {
   router.get(
     '/schedule',
     asyncHandler(async (_req, res) => {
+      setEdgeCache(res);
       res.json(await portalService.getSchedule());
     })
   );
@@ -49,6 +58,7 @@ export function createPublicRoutes(portalService: PortalService): Router {
   router.get(
     '/results',
     asyncHandler(async (_req, res) => {
+      setEdgeCache(res);
       res.json(await portalService.getResults({ includeUnpublished: false }));
     })
   );
@@ -56,6 +66,7 @@ export function createPublicRoutes(portalService: PortalService): Router {
   router.get(
     '/brief',
     asyncHandler(async (_req, res) => {
+      setEdgeCache(res);
       res.json(await portalService.getBrief());
     })
   );
@@ -63,6 +74,7 @@ export function createPublicRoutes(portalService: PortalService): Router {
   router.get(
     '/faqs',
     asyncHandler(async (req, res) => {
+      setEdgeCache(res);
       const category = typeof req.query.category === 'string' ? req.query.category : undefined;
       res.json(await portalService.getFaqs(category));
     })

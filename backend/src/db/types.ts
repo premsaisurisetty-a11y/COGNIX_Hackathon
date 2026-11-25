@@ -150,7 +150,7 @@ export interface DataStore {
   // Tracks
   listTracks(): Promise<TrackDoc[]>;
   getTrackById(id: number): Promise<TrackDoc | null>;
-  createTrack(input: { num: string; name: string; description: string; sortOrder: number }): Promise<TrackDoc>;
+  createTrack(input: { num: string; name: string; description: string; sortOrder?: number }): Promise<TrackDoc>;
   updateTrack(id: number, patch: Partial<{ num: string; name: string; description: string; sortOrder: number }>): Promise<TrackDoc | null>;
   deleteTrack(id: number): Promise<boolean>;
 
@@ -164,7 +164,7 @@ export interface DataStore {
     body: string;
     constraints: string;
     evaluationNotes: string;
-    sortOrder: number;
+    sortOrder?: number;
   }): Promise<StatementDoc>;
   updateStatement(
     id: number,
@@ -188,7 +188,7 @@ export interface DataStore {
     name: string;
     dateLabel: string;
     summary: string;
-    sortOrder: number;
+    sortOrder?: number;
   }): Promise<ScheduleDayDoc>;
   updateScheduleDay(
     id: number,
@@ -200,7 +200,7 @@ export interface DataStore {
   getScheduleItemById(id: number): Promise<ScheduleItemDoc | null>;
   createScheduleItem(
     dayId: number,
-    input: { time: string; title: string; note: string; sortOrder: number }
+    input: { time: string; title: string; note: string; sortOrder?: number }
   ): Promise<ScheduleItemDoc>;
   updateScheduleItem(
     id: number,
@@ -236,7 +236,7 @@ export interface DataStore {
     screenshotUrl: string;
     demoUrl: string;
     repoUrl: string;
-    sortOrder: number;
+    sortOrder?: number;
   }): Promise<ShowcaseDoc>;
   updateShowcase(
     id: number,
@@ -261,7 +261,7 @@ export interface DataStore {
     num: string;
     heading: string;
     body: string;
-    sortOrder: number;
+    sortOrder?: number;
   }): Promise<BriefSectionDoc>;
   updateBriefSection(
     id: number,
@@ -276,7 +276,7 @@ export interface DataStore {
     question: string;
     answer: string;
     category: string;
-    sortOrder: number;
+    sortOrder?: number;
   }): Promise<FaqDoc>;
   updateFaq(
     id: number,

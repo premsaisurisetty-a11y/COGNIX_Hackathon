@@ -1,14 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex, nofollow">
   <title>Organizer Access — COGNIX ’26</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23632B97'/%3E%3Crect width='32' height='5' fill='%233BB3F2'/%3E%3Ctext x='16' y='23' text-anchor='middle' fill='%23FFFFFF' font-family='Georgia,serif' font-size='16'%3EA%3C/text%3E%3C/svg%3E">
   <link rel="stylesheet" href="/styles.css">
 </head>
-
 <body>
   <header class="site-header" style="padding-bottom:24px;border-bottom:1px solid var(--line)">
     <a href="/" class="brand-logo" aria-label="ACM KLH Student Chapter">
@@ -35,15 +34,14 @@
     <form id="login-form" autocomplete="off">
       <div class="field">
         <label for="login-username">Identifier</label>
-        <input id="login-username" type="text" autocomplete="off" autocapitalize="off" spellcheck="false"
-          placeholder="Enter username or email" required>
+        <input id="login-username" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Enter username or email" required>
       </div>
       <div class="field">
         <label for="login-password">Password</label>
         <input id="login-password" type="password" autocomplete="off" placeholder="Enter password" required>
       </div>
       <p id="login-error" class="mono hidden" style="color:var(--danger);font-size:12px;margin:0 0 14px"></p>
-      <button type="submit" class="btn btn-primary" style="width:100%">SIGN IN</button>
+      <button type="submit" id="btn-login-submit" class="btn btn-primary" style="width:100%">SIGN IN</button>
     </form>
   </section>
 
@@ -61,9 +59,19 @@
     <div id="tab-content"></div>
   </main>
 
+  <!-- REUSABLE EDIT MODAL -->
+  <div id="edit-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true">
+    <div class="modal-card">
+      <div class="panel-head">
+        <h3 id="modal-title">Edit Item</h3>
+        <button type="button" id="modal-close" class="btn btn-sm">CLOSE</button>
+      </div>
+      <div id="modal-body"></div>
+    </div>
+  </div>
+
   <div id="toast" class="toast hidden"></div>
 
   <script src="/admin.js"></script>
 </body>
-
 </html>

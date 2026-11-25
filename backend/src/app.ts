@@ -80,6 +80,14 @@ export function createApp(options: AppOptions): Express {
     next();
   });
 
+  app.get('/favicon.ico', (_req, res) => {
+    res.status(204).end();
+  });
+
+  app.get('/robots.txt', (_req, res) => {
+    res.type('text/plain').send('User-agent: *\nDisallow: /admin\nDisallow: /api/admin\n');
+  });
+
   const portalService = new PortalService(options.store);
   const adminService = new AdminService(options.store);
 
@@ -133,12 +141,34 @@ function createServerlessApp(): Express {
     next();
   });
 
+  serverlessApp.get('/favicon.ico', (_req, res) => {
+    res.status(204).end();
+  });
+
+  serverlessApp.get('/robots.txt', (_req, res) => {
+    res.type('text/plain').send('User-agent: *\nDisallow: /admin\nDisallow: /api/admin\n');
+  });
+
   serverlessApp.use(express.static(publicDir));
   serverlessApp.get('/', (_req, res) => {
     res.sendFile(path.join(publicDir, 'index.html'));
   });
   serverlessApp.get('/admin', (_req, res) => {
     res.sendFile(path.join(publicDir, 'admin.html'));
+  });
+
+  // Never wake MongoDB for random non-API 404 probes (e.g. bots, missing assets)
+  serverlessApp.use((req, res, next) => {
+    if (req.path.startsWith('/api') || req.path.startsWith('/uploads')) {
+      next();
+      return;
+    }
+    res.status(404).json({
+      error: {
+        code: 'NOT_FOUND',
+        message: 'Endpoint not found',
+      },
+    });
   });
 
   let apiAppPromise: Promise<Express> | null = null;

@@ -157,10 +157,11 @@ export class InMemoryStore implements DataStore {
     return this.tracks.find((t) => t.id === id) ?? null;
   }
 
-  async createTrack(input: { num: string; name: string; description: string; sortOrder: number }): Promise<TrackDoc> {
+  async createTrack(input: { num: string; name: string; description: string; sortOrder?: number }): Promise<TrackDoc> {
     if (this.tracks.some((t) => t.num === input.num)) throw conflict('Track number already exists');
+    const sortOrder = input.sortOrder ?? (this.tracks.reduce((m, t) => Math.max(m, t.sortOrder), 0) + 1);
     const now = nowIso();
-    const doc: TrackDoc = { id: this.nextId('tracks'), ...input, createdAt: now, updatedAt: now };
+    const doc: TrackDoc = { id: this.nextId('tracks'), ...input, sortOrder, createdAt: now, updatedAt: now };
     this.tracks.push(doc);
     return { ...doc };
   }
@@ -188,10 +189,12 @@ export class InMemoryStore implements DataStore {
     return this.statements.find((s) => s.id === id) ?? null;
   }
 
-  async createStatement(input: { code: string; trackId: number; title: string; body: string; constraints: string; evaluationNotes: string; sortOrder: number }): Promise<StatementDoc> {
+  async createStatement(input: { code: string; trackId: number; title: string; body: string; constraints: string; evaluationNotes: string; sortOrder?: number }): Promise<StatementDoc> {
     if (this.statements.some((s) => s.code === input.code)) throw conflict('Statement code already exists');
+    const sameTrack = this.statements.filter((s) => s.trackId === input.trackId);
+    const sortOrder = input.sortOrder ?? (sameTrack.reduce((m, s) => Math.max(m, s.sortOrder), 0) + 1);
     const now = nowIso();
-    const doc: StatementDoc = { id: this.nextId('statements'), ...input, createdAt: now, updatedAt: now };
+    const doc: StatementDoc = { id: this.nextId('statements'), ...input, sortOrder, createdAt: now, updatedAt: now };
     this.statements.push(doc);
     return { ...doc };
   }
@@ -218,9 +221,10 @@ export class InMemoryStore implements DataStore {
     return this.days.find((d) => d.id === id) ?? null;
   }
 
-  async createScheduleDay(input: { num: string; name: string; dateLabel: string; summary: string; sortOrder: number }): Promise<ScheduleDayDoc> {
+  async createScheduleDay(input: { num: string; name: string; dateLabel: string; summary: string; sortOrder?: number }): Promise<ScheduleDayDoc> {
+    const sortOrder = input.sortOrder ?? (this.days.reduce((m, d) => Math.max(m, d.sortOrder), 0) + 1);
     const now = nowIso();
-    const doc: ScheduleDayDoc = { id: this.nextId('days'), ...input, createdAt: now, updatedAt: now };
+    const doc: ScheduleDayDoc = { id: this.nextId('days'), ...input, sortOrder, createdAt: now, updatedAt: now };
     this.days.push(doc);
     return { ...doc };
   }
@@ -248,9 +252,11 @@ export class InMemoryStore implements DataStore {
     return this.items.find((i) => i.id === id) ?? null;
   }
 
-  async createScheduleItem(dayId: number, input: { time: string; title: string; note: string; sortOrder: number }): Promise<ScheduleItemDoc> {
+  async createScheduleItem(dayId: number, input: { time: string; title: string; note: string; sortOrder?: number }): Promise<ScheduleItemDoc> {
+    const sameDay = this.items.filter((i) => i.dayId === dayId);
+    const sortOrder = input.sortOrder ?? (sameDay.reduce((m, i) => Math.max(m, i.sortOrder), 0) + 1);
     const now = nowIso();
-    const doc: ScheduleItemDoc = { id: this.nextId('items'), dayId, ...input, createdAt: now, updatedAt: now };
+    const doc: ScheduleItemDoc = { id: this.nextId('items'), dayId, ...input, sortOrder, createdAt: now, updatedAt: now };
     this.items.push(doc);
     return { ...doc };
   }
@@ -299,9 +305,10 @@ export class InMemoryStore implements DataStore {
     return this.showcase.find((s) => s.id === id) ?? null;
   }
 
-  async createShowcase(input: { label: string; title: string; team: string; description: string; trackName: string; screenshotUrl: string; demoUrl: string; repoUrl: string; sortOrder: number }): Promise<ShowcaseDoc> {
+  async createShowcase(input: { label: string; title: string; team: string; description: string; trackName: string; screenshotUrl: string; demoUrl: string; repoUrl: string; sortOrder?: number }): Promise<ShowcaseDoc> {
+    const sortOrder = input.sortOrder ?? (this.showcase.reduce((m, s) => Math.max(m, s.sortOrder), 0) + 1);
     const now = nowIso();
-    const doc: ShowcaseDoc = { id: this.nextId('showcase'), ...input, createdAt: now, updatedAt: now };
+    const doc: ShowcaseDoc = { id: this.nextId('showcase'), ...input, sortOrder, createdAt: now, updatedAt: now };
     this.showcase.push(doc);
     return { ...doc };
   }
@@ -328,9 +335,10 @@ export class InMemoryStore implements DataStore {
     return this.briefSections.find((b) => b.id === id) ?? null;
   }
 
-  async createBriefSection(input: { num: string; heading: string; body: string; sortOrder: number }): Promise<BriefSectionDoc> {
+  async createBriefSection(input: { num: string; heading: string; body: string; sortOrder?: number }): Promise<BriefSectionDoc> {
+    const sortOrder = input.sortOrder ?? (this.briefSections.reduce((m, b) => Math.max(m, b.sortOrder), 0) + 1);
     const now = nowIso();
-    const doc: BriefSectionDoc = { id: this.nextId('brief'), ...input, createdAt: now, updatedAt: now };
+    const doc: BriefSectionDoc = { id: this.nextId('brief'), ...input, sortOrder, createdAt: now, updatedAt: now };
     this.briefSections.push(doc);
     return { ...doc };
   }
@@ -357,9 +365,10 @@ export class InMemoryStore implements DataStore {
     return this.faqs.find((f) => f.id === id) ?? null;
   }
 
-  async createFaq(input: { question: string; answer: string; category: string; sortOrder: number }): Promise<FaqDoc> {
+  async createFaq(input: { question: string; answer: string; category: string; sortOrder?: number }): Promise<FaqDoc> {
+    const sortOrder = input.sortOrder ?? (this.faqs.reduce((m, f) => Math.max(m, f.sortOrder), 0) + 1);
     const now = nowIso();
-    const doc: FaqDoc = { id: this.nextId('faqs'), ...input, createdAt: now, updatedAt: now };
+    const doc: FaqDoc = { id: this.nextId('faqs'), ...input, sortOrder, createdAt: now, updatedAt: now };
     this.faqs.push(doc);
     return { ...doc };
   }

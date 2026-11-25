@@ -13,6 +13,18 @@
       .replace(/'/g, '&#39;');
   }
 
+  function safeUrl(raw) {
+    const val = String(raw ?? '').trim();
+    if (!val) return '';
+    if (val.startsWith('/uploads/')) return val;
+    try {
+      const u = new URL(val);
+      return u.protocol === 'http:' || u.protocol === 'https:' ? u.href : '';
+    } catch {
+      return '';
+    }
+  }
+
   function currentPage() {
     const hash = (window.location.hash || '').replace('#', '').toLowerCase();
     return VALID_PAGES.includes(hash) ? hash : 'problems';
@@ -26,9 +38,12 @@
 
   function renderBrief() {
     const { config, brief } = portalData;
-    const sectionsHtml = brief.sections
-      .map(
-        (s) => `
+    const sectionsHtml =
+      brief.sections.length === 0
+        ? '<p class="muted" style="padding:32px 0">Brief details will be published soon.</p>'
+        : brief.sections
+            .map(
+              (s) => `
       <article class="statement-card">
         <span class="statement-code">${esc(s.num)}</span>
         <div class="statement-content">
@@ -36,8 +51,8 @@
           <p>${esc(s.body)}</p>
         </div>
       </article>`
-      )
-      .join('');
+            )
+            .join('');
 
     return `
       <section>
@@ -65,13 +80,18 @@
           </div>
         </div>
 
-        <p style="font-size:19px;line-height:1.65;color:var(--muted);max-width:780px;margin:0 0 36px">${esc(brief.summary)}</p>
+        <p style="font-size:19px;line-height:1.65;color:var(--muted);max-width:780px;margin:0 0 36px;white-space:pre-line">${esc(brief.summary)}</p>
         <div style="border-top:1px solid var(--line-strong)">${sectionsHtml}</div>
       </section>`;
   }
 
   function renderProblems() {
     const { config, problems } = portalData;
+    const validTrackKeys = new Set(problems.tracks.map((t) => t.num));
+    if (selectedTrack !== 'all' && !validTrackKeys.has(selectedTrack)) {
+      selectedTrack = 'all';
+    }
+
     const visibleTracks =
       selectedTrack === 'all'
         ? problems.tracks
@@ -84,9 +104,12 @@
       )
       .join('');
 
-    const tracksHtml = visibleTracks
-      .map(
-        (t) => `
+    const tracksHtml =
+      visibleTracks.length === 0
+        ? '<p class="muted" style="padding:36px 0">No tracks published yet.</p>'
+        : visibleTracks
+            .map(
+              (t) => `
       <div class="track-block">
         <div class="track-head">
           <div>
@@ -95,24 +118,28 @@
           </div>
           <span class="mono muted" style="font-size:14px">${esc(t.countLabel)}</span>
         </div>
-        ${t.description ? `<p class="muted" style="margin:18px 0 0;font-size:16px;max-width:760px">${esc(t.description)}</p>` : ''}
-        ${t.statements
-          .map(
-            (s) => `
+        ${t.description ? `<p class="muted" style="margin:18px 0 0;font-size:16px;max-width:760px;white-space:pre-line">${esc(t.description)}</p>` : ''}
+        ${
+          t.statements.length === 0
+            ? '<p class="muted" style="padding:28px 0;border-bottom:1px solid var(--line)">Statements for this track will appear here shortly.</p>'
+            : t.statements
+                .map(
+                  (s) => `
           <article class="statement-card">
             <span class="statement-code">${esc(s.id)}</span>
             <div class="statement-content">
               <h3>${esc(s.title)}</h3>
               <p>${esc(s.body)}</p>
-              ${s.constraints ? `<div class="statement-meta"><strong class="mono" style="font-size:12px">CONSTRAINTS:</strong> ${esc(s.constraints)}</div>` : ''}
-              ${s.evaluationNotes ? `<div class="statement-meta"><strong class="mono" style="font-size:12px">EVALUATION:</strong> ${esc(s.evaluationNotes)}</div>` : ''}
+              ${s.constraints ? `<div class="statement-meta"><strong class="mono" style="font-size:12px">CONSTRAINTS:</strong>\n${esc(s.constraints)}</div>` : ''}
+              ${s.evaluationNotes ? `<div class="statement-meta"><strong class="mono" style="font-size:12px">EVALUATION:</strong>\n${esc(s.evaluationNotes)}</div>` : ''}
             </div>
           </article>`
-          )
-          .join('')}
+                )
+                .join('')
+        }
       </div>`
-      )
-      .join('');
+            )
+            .join('');
 
     return `
       <section>
@@ -146,6 +173,7 @@
                 <span class="status-dot"></span>
                 <span class="mono" style="font-size:14px">NOT YET RELEASED</span>
                 <span class="muted">The structure below shows how statements will appear. Titles and descriptions are published on Friday.</span>
+                <button type="button" class="btn btn-sm" id="btn-refresh-portal" style="margin-left:auto">CHECK FOR RELEASE</button>
               </div>`
             : ''
         }
@@ -160,9 +188,13 @@
 
   function renderSchedule() {
     const { config, schedule } = portalData;
-    const daysHtml = schedule.days
-      .map(
-        (d) => `
+    const dayCountLabel = `${schedule.days.length} ${schedule.days.length === 1 ? 'DAY' : 'DAYS'}`;
+    const daysHtml =
+      schedule.days.length === 0
+        ? '<p class="muted" style="padding:36px 0">Schedule details will be announced soon.</p>'
+        : schedule.days
+            .map(
+              (d) => `
       <div class="day-block">
         <div>
           <span class="mono muted" style="font-size:14px">DAY ${esc(d.num)} / ${esc(d.dateLabel)}</span>
@@ -170,22 +202,26 @@
           <span class="muted" style="font-size:18px;line-height:1.5">${esc(d.summary)}</span>
         </div>
         <ol class="timeline">
-          ${d.items
-            .map(
-              (item) => `
+          ${
+            d.items.length === 0
+              ? '<li><span class="mono muted">TBA</span><div class="muted">Timings to be announced.</div></li>'
+              : d.items
+                  .map(
+                    (item) => `
             <li>
               <span class="mono muted" style="font-size:15px;padding-top:4px">${esc(item.time)}</span>
               <div style="display:flex;flex-direction:column;gap:8px">
                 <span class="display" style="font-weight:500;font-size:clamp(22px,1.8vw,30px)">${esc(item.title)}</span>
-                <span class="muted" style="font-size:16px;line-height:1.6">${esc(item.note)}</span>
+                <span class="muted" style="font-size:16px;line-height:1.6;white-space:pre-line">${esc(item.note)}</span>
               </div>
             </li>`
-            )
-            .join('')}
+                  )
+                  .join('')
+          }
         </ol>
       </div>`
-      )
-      .join('');
+            )
+            .join('');
 
     return `
       <section>
@@ -194,7 +230,7 @@
             <span class="accent-bar"></span>
             <span class="mono muted">${esc(config.eventName)} / SCHEDULE</span>
           </div>
-          <span class="mono muted">${esc(schedule.days.length)} DAYS</span>
+          <span class="mono muted">${esc(dayCountLabel)}</span>
         </div>
         <h1 class="hero-title">Schedule</h1>
         <div class="hairline" style="margin-top:clamp(36px,4.5vw,72px)"></div>
@@ -213,15 +249,17 @@
           </div>
         </div>
         ${daysHtml}
-        <p class="mono muted" style="margin:0;padding:24px 0 0;border-top:1px solid var(--line);font-size:13px">${esc(schedule.footerNote)}</p>
+        ${schedule.footerNote ? `<p class="mono muted" style="margin:0;padding:24px 0 0;border-top:1px solid var(--line);font-size:13px">${esc(schedule.footerNote)}</p>` : ''}
       </section>`;
   }
 
   function renderResults() {
     const { config, results } = portalData;
     const podiumHtml = results.podium
-      .map(
-        (p) => `
+      .map((p) => {
+        const demoHref = safeUrl(p.projectUrl);
+        const repoHref = safeUrl(p.repoUrl);
+        return `
       <div class="podium-card">
         <span class="mono muted" style="font-size:14px">${esc(p.place)}</span>
         <span class="podium-num">${esc(p.num)}</span>
@@ -230,17 +268,18 @@
           <span class="display" style="font-weight:500;font-size:clamp(22px,1.9vw,32px)">${esc(p.team)}</span>
           <span class="mono muted" style="font-size:12px;padding-top:8px">PROJECT</span>
           <span style="font-size:18px;line-height:1.5">${esc(p.project)}</span>
+          ${p.trackName ? `<span class="mono muted" style="font-size:12px;padding-top:4px">TRACK: ${esc(p.trackName.toUpperCase())}</span>` : ''}
           ${
-            p.projectUrl || p.repoUrl
+            demoHref || repoHref
               ? `<div style="display:flex;gap:16px;padding-top:8px;font-size:13px" class="mono">
-                  ${p.projectUrl ? `<a href="${esc(p.projectUrl)}" target="_blank" rel="noopener" style="text-decoration:underline">DEMO</a>` : ''}
-                  ${p.repoUrl ? `<a href="${esc(p.repoUrl)}" target="_blank" rel="noopener" style="text-decoration:underline">REPO</a>` : ''}
+                  ${demoHref ? `<a href="${esc(demoHref)}" target="_blank" rel="noopener noreferrer" style="text-decoration:underline">DEMO</a>` : ''}
+                  ${repoHref ? `<a href="${esc(repoHref)}" target="_blank" rel="noopener noreferrer" style="text-decoration:underline">REPO</a>` : ''}
                 </div>`
               : ''
           }
         </div>
-      </div>`
-      )
+      </div>`;
+      })
       .join('');
 
     const showcaseHtml = results.showShowcase
@@ -255,22 +294,33 @@
         </div>
         <div class="showcase-grid">
           ${results.showcase
-            .map(
-              (s) => `
+            .map((s) => {
+              const imgHref = safeUrl(s.screenshotUrl);
+              const demoHref = safeUrl(s.demoUrl);
+              const repoHref = safeUrl(s.repoUrl);
+              return `
             <div style="display:flex;flex-direction:column;gap:14px">
               <div class="showcase-thumb">
                 ${
-                  s.screenshotUrl
-                    ? `<img src="${esc(s.screenshotUrl)}" alt="${esc(s.title)}">`
+                  imgHref
+                    ? `<img src="${esc(imgHref)}" alt="${esc(s.title)}" loading="lazy" data-fallback-img="true">`
                     : `<span class="mono muted" style="font-size:12px">PROJECT SCREENSHOT</span>`
                 }
               </div>
-              <span class="mono muted" style="font-size:13px">${esc(s.label)}</span>
+              <span class="mono muted" style="font-size:13px">${esc(s.label)}${s.trackName ? ` / ${esc(s.trackName.toUpperCase())}` : ''}</span>
               <span class="display" style="font-weight:500;font-size:24px">${esc(s.title)}</span>
               <span class="muted" style="font-size:16px">${esc(s.team)}</span>
-              ${s.description ? `<p class="muted" style="margin:0;font-size:15px;line-height:1.5">${esc(s.description)}</p>` : ''}
-            </div>`
-            )
+              ${s.description ? `<p class="muted" style="margin:0;font-size:15px;line-height:1.5;white-space:pre-line">${esc(s.description)}</p>` : ''}
+              ${
+                demoHref || repoHref
+                  ? `<div style="display:flex;gap:16px;padding-top:4px;font-size:13px" class="mono">
+                      ${demoHref ? `<a href="${esc(demoHref)}" target="_blank" rel="noopener noreferrer" style="text-decoration:underline">DEMO</a>` : ''}
+                      ${repoHref ? `<a href="${esc(repoHref)}" target="_blank" rel="noopener noreferrer" style="text-decoration:underline">REPO</a>` : ''}
+                    </div>`
+                  : ''
+              }
+            </div>`;
+            })
             .join('')}
         </div>
       </div>`
@@ -295,11 +345,15 @@
 
   function renderFaq() {
     const { config, faqs } = portalData;
+    if (selectedFaqCategory !== 'all' && !faqs.categories.includes(selectedFaqCategory)) {
+      selectedFaqCategory = 'all';
+    }
     const cats = ['all', ...faqs.categories];
     const items =
       selectedFaqCategory === 'all'
         ? faqs.items
         : faqs.items.filter((f) => f.category === selectedFaqCategory);
+    const countLabel = `${faqs.items.length} ${faqs.items.length === 1 ? 'QUESTION' : 'QUESTIONS'}`;
 
     return `
       <section>
@@ -308,7 +362,7 @@
             <span class="accent-bar"></span>
             <span class="mono muted">${esc(config.eventName)} / FAQ</span>
           </div>
-          <span class="mono muted">${faqs.items.length} QUESTIONS</span>
+          <span class="mono muted">${esc(countLabel)}</span>
         </div>
         <h1 class="hero-title">FAQ</h1>
         <div class="hairline" style="margin-top:clamp(36px,4.5vw,72px)"></div>
@@ -322,9 +376,12 @@
             .join('')}
         </div>
         <div style="border-top:1px solid var(--line-strong);margin-top:24px">
-          ${items
-            .map(
-              (f, idx) => `
+          ${
+            items.length === 0
+              ? '<p class="muted" style="padding:32px 0">No questions posted yet.</p>'
+              : items
+                  .map(
+                    (f, idx) => `
             <article class="statement-card">
               <span class="statement-code">Q-${String(idx + 1).padStart(2, '0')}</span>
               <div class="statement-content">
@@ -333,8 +390,9 @@
                 <p>${esc(f.answer)}</p>
               </div>
             </article>`
-            )
-            .join('')}
+                  )
+                  .join('')
+          }
         </div>
       </section>`;
   }
@@ -344,6 +402,7 @@
     const page = currentPage();
     updateNav(page);
 
+    document.title = `${portalData.config.eventName} — ACM KLH Hackathon`;
     document.getElementById('hdr-chapter').textContent = portalData.config.chapterLabel;
     document.getElementById('hdr-campus').textContent = portalData.config.campusLocation;
     document.getElementById('ftr-event').textContent = portalData.config.eventTagline;
@@ -368,11 +427,30 @@
         render();
       });
     });
+
+    root.querySelectorAll('img[data-fallback-img]').forEach((img) => {
+      img.addEventListener('error', () => {
+        const parent = img.parentElement;
+        if (parent) {
+          parent.innerHTML = '<span class="mono muted" style="font-size:12px">PROJECT SCREENSHOT</span>';
+        }
+      });
+    });
+
+    const refreshBtn = document.getElementById('btn-refresh-portal');
+    if (refreshBtn) {
+      refreshBtn.addEventListener('click', async () => {
+        refreshBtn.disabled = true;
+        refreshBtn.textContent = 'CHECKING...';
+        await loadPortal(true);
+      });
+    }
   }
 
-  async function init() {
+  async function loadPortal(bustCache = false) {
     try {
-      const res = await fetch('/api/portal');
+      const url = bustCache ? `/api/portal?t=${Date.now()}` : '/api/portal';
+      const res = await fetch(url);
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         throw new Error(data?.error?.message || `Failed to load portal data (${res.status})`);
@@ -380,8 +458,14 @@
       portalData = data;
       render();
     } catch (err) {
-      document.getElementById('portal-root').innerHTML =
-        `<p class="mono" style="color:var(--danger)">${esc(err.message)}</p>`;
+      const root = document.getElementById('portal-root');
+      root.innerHTML = `
+        <div style="display:flex;flex-direction:column;gap:16px;align-items:flex-start;padding:24px 0">
+          <p class="mono" style="color:var(--danger);margin:0">${esc(err.message)}</p>
+          <button type="button" id="btn-retry-portal" class="btn btn-primary">RETRY</button>
+        </div>`;
+      const retry = document.getElementById('btn-retry-portal');
+      if (retry) retry.addEventListener('click', () => void loadPortal(true));
     }
   }
 
@@ -390,5 +474,5 @@
     window.scrollTo(0, 0);
   });
 
-  init();
+  void loadPortal();
 })();

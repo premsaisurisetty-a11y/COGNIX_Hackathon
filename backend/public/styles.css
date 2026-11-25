@@ -1,13 +1,9 @@
 @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Marcellus&display=swap');
 
-/* Self-hosted Larken font faces (drop licensed files into backend/public/fonts/) */
+/* Use locally installed Larken if available (avoids 404 network probes until licensed woff2 files are added) */
 @font-face {
   font-family: 'Larken';
-  src: local('Larken Regular'), local('Larken'),
-       url('/fonts/Larken-Regular.woff2') format('woff2'),
-       url('/fonts/Larken-Regular.woff') format('woff'),
-       url('/fonts/Larken-Regular.ttf') format('truetype'),
-       url('/fonts/Larken-Regular.otf') format('opentype');
+  src: local('Larken Regular'), local('Larken');
   font-weight: 400;
   font-style: normal;
   font-display: swap;
@@ -15,11 +11,7 @@
 
 @font-face {
   font-family: 'Larken';
-  src: local('Larken Medium'),
-       url('/fonts/Larken-Medium.woff2') format('woff2'),
-       url('/fonts/Larken-Medium.woff') format('woff'),
-       url('/fonts/Larken-Medium.ttf') format('truetype'),
-       url('/fonts/Larken-Medium.otf') format('opentype');
+  src: local('Larken Medium');
   font-weight: 500;
   font-style: normal;
   font-display: swap;
@@ -27,11 +19,7 @@
 
 @font-face {
   font-family: 'Larken';
-  src: local('Larken Bold'),
-       url('/fonts/Larken-Bold.woff2') format('woff2'),
-       url('/fonts/Larken-Bold.woff') format('woff'),
-       url('/fonts/Larken-Bold.ttf') format('truetype'),
-       url('/fonts/Larken-Bold.otf') format('opentype');
+  src: local('Larken Bold');
   font-weight: 600 700;
   font-style: normal;
   font-display: swap;
@@ -422,6 +410,7 @@ select {
   font-size: clamp(15px, 1.05vw, 18px);
   line-height: 1.65;
   color: var(--muted);
+  white-space: pre-line;
 }
 
 .statement-meta {
@@ -430,6 +419,7 @@ select {
   background: var(--surface);
   padding: 12px 16px;
   border-left: 3px solid var(--accent);
+  white-space: pre-line;
 }
 
 /* Schedule */
@@ -708,4 +698,72 @@ select {
 
 .hidden {
   display: none !important;
+}
+
+.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* Edit Modal */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(31, 41, 55, 0.52);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 1000;
+}
+
+.modal-card {
+  width: 100%;
+  max-width: 640px;
+  max-height: 90vh;
+  overflow-y: auto;
+  background: var(--white);
+  border: 1px solid var(--line-strong);
+  border-top: 4px solid var(--acm-blue);
+  padding: 28px;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+@media (max-width: 768px) {
+  .site-nav {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .meta-col {
+    border-left: 0;
+    border-top: 1px solid var(--line);
+    padding-left: 0;
+    padding-top: 24px;
+  }
+
+  .timeline li {
+    grid-template-columns: 1fr;
+    gap: 6px;
+    padding-bottom: 28px;
+  }
+
+  .login-wrap,
+  .panel,
+  .modal-card {
+    padding: 20px;
+  }
+
+  .toast {
+    left: 16px;
+    right: 16px;
+    bottom: 16px;
+    max-width: none;
+  }
 }

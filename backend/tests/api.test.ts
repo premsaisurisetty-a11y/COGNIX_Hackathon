@@ -273,5 +273,31 @@ describe('COGNIX 26 Hackathon Portal CMS & Admin API', () => {
     expect(adminPage.status).toBe(200);
     expect(adminPage.text).toContain('Organizer Sign In');
     expect(adminPage.text).not.toContain('value="Admin"');
+
+    const favicon = await request(vercelApp).get('/favicon.ico');
+    expect(favicon.status).toBe(204);
+
+    const robots = await request(vercelApp).get('/robots.txt');
+    expect(robots.status).toBe(200);
+    expect(robots.text).toContain('Disallow: /admin');
+
+    const missing = await request(vercelApp).get('/nonexistent-probe');
+    expect(missing.status).toBe(404);
+  });
+
+  it('auto-appends sortOrder on newly created tracks and statements without jumping to top', async () => {
+    const token = await loginAsAdmin();
+
+    const newTrack = await request(app)
+      .post('/api/admin/tracks')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ num: '03', name: 'Hardware & IoT' });
+    expect(newTrack.status).toBe(201);
+    expect(newTrack.body.sortOrder).toBe(3);
+
+    const tracks = await request(app)
+      .get('/api/admin/tracks')
+      .set('Authorization', `Bearer ${token}`);
+    expect(tracks.body.tracks.map((t: { num: string }) => t.num)).toEqual(['01', '02', '03']);
   });
 });

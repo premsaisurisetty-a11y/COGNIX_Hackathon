@@ -68,7 +68,7 @@ export class AdminService {
   }
 
   // ---- Tracks ----
-  async createTrack(input: { num: string; name: string; description: string; sortOrder: number }) {
+  async createTrack(input: { num: string; name: string; description: string; sortOrder?: number }) {
     return this.store.createTrack(input);
   }
 
@@ -110,7 +110,7 @@ export class AdminService {
     body: string;
     constraints: string;
     evaluationNotes: string;
-    sortOrder: number;
+    sortOrder?: number;
   }) {
     await this.getTrackById(input.trackId);
     return this.store.createStatement(input);
@@ -153,7 +153,7 @@ export class AdminService {
     name: string;
     dateLabel: string;
     summary: string;
-    sortOrder: number;
+    sortOrder?: number;
   }) {
     return this.store.createScheduleDay(input);
   }
@@ -180,7 +180,7 @@ export class AdminService {
 
   async createScheduleItem(
     dayId: number,
-    input: { time: string; title: string; note: string; sortOrder: number }
+    input: { time: string; title: string; note: string; sortOrder?: number }
   ) {
     await this.getScheduleDayById(dayId);
     return this.store.createScheduleItem(dayId, input);
@@ -245,7 +245,7 @@ export class AdminService {
     screenshotUrl: string;
     demoUrl: string;
     repoUrl: string;
-    sortOrder: number;
+    sortOrder?: number;
   }) {
     return this.store.createShowcase({
       label: input.label,
@@ -309,7 +309,7 @@ export class AdminService {
   }
 
   // ---- Brief Sections ----
-  async createBriefSection(input: { num: string; heading: string; body: string; sortOrder: number }) {
+  async createBriefSection(input: { num: string; heading: string; body: string; sortOrder?: number }) {
     return this.store.createBriefSection(input);
   }
 
@@ -328,7 +328,7 @@ export class AdminService {
   }
 
   // ---- FAQs ----
-  async createFaq(input: { question: string; answer: string; category: string; sortOrder: number }) {
+  async createFaq(input: { question: string; answer: string; category: string; sortOrder?: number }) {
     return this.store.createFaq(input);
   }
 
