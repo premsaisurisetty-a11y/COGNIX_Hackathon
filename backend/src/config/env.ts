@@ -21,7 +21,7 @@ export const env = {
   jwtSecret: process.env.JWT_SECRET ?? 'cognix-26-dev-secret-change-in-production',
   jwtExpiresIn: process.env.JWT_EXPIRES_IN ?? '12h',
   corsOrigin: process.env.CORS_ORIGIN ?? '*',
-  adminEmail: process.env.ADMIN_EMAIL ?? 'admin@acmklh.org',
-  adminPassword: process.env.ADMIN_PASSWORD ?? 'ACM0206',
-  adminName: process.env.ADMIN_NAME ?? 'Admin',
+  adminEmail: process.env.ADMIN_EMAIL ?? '',
+  adminPassword: process.env.ADMIN_PASSWORD ?? '',
+  adminName: process.env.ADMIN_NAME ?? '',
 };

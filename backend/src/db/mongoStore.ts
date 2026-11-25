@@ -303,7 +303,12 @@ export class MongoStore implements DataStore {
       });
     }
 
-    if ((await this.db.collection('admins').countDocuments()) === 0) {
+    if (
+      (await this.db.collection('admins').countDocuments()) === 0 &&
+      options.adminEmail &&
+      options.adminPassword &&
+      options.adminName
+    ) {
       const id = await this.nextId('admins');
       const now = nowIso();
       await this.db.collection<AdminDoc>('admins').insertOne({
