@@ -20,9 +20,9 @@ Node.js + Express + TypeScript + **MongoDB** CMS, Admin Dashboard, and Live Publ
    - `MONGODB_URI` = `mongodb+srv://<user>:<password>@<cluster>.mongodb.net/cognix_db?retryWrites=true&w=majority`
    - `MONGODB_DB_NAME` = `cognix_db`
    - `JWT_SECRET` = *(long random secret string)*
-   - `ADMIN_NAME` = `Admin`
-   - `ADMIN_EMAIL` = `admin@acmklh.org`
-   - `ADMIN_PASSWORD` = `ACM0206`
+   - `ADMIN_NAME` = *(your organizer username)*
+   - `ADMIN_EMAIL` = *(your organizer email)*
+   - `ADMIN_PASSWORD` = *(strong private password)*
    - `NODE_ENV` = `production`
 3. Set **Root Directory** to `backend` and **Redeploy**.
 
@@ -42,7 +42,5 @@ npm run dev
 - `npm test` — Run Vitest + Supertest integration suite
 - `npm run typecheck` — TypeScript strict type check
 
-## Default Admin Credentials
-- **Admin UI**: `/admin`
-- **Username**: `Admin` (or `admin@acmklh.org`)
-- **Password**: `ACM0206`
+## Organizer CMS
+Access the organizer portal directly at `/admin` using the credentials configured in your environment variables (password can be rotated anytime under **Account**).

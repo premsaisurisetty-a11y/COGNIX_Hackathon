@@ -3,7 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Admin CMS — COGNIX ’26</title>
+  <meta name="robots" content="noindex, nofollow">
+  <title>Organizer Access — COGNIX ’26</title>
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
@@ -12,8 +13,8 @@
       <img src="/acm-klh-logo.jpg" alt="ACM Student Chapter, KL University Bachupally Campus">
     </a>
     <div class="brand-meta">
-      <span class="mono muted" style="font-size:13px">COGNIX ’26 / ADMIN CMS</span>
-      <span id="admin-user-label" class="muted" style="font-size:16px">Sign in to manage hackathon content</span>
+      <span class="mono muted" style="font-size:13px">COGNIX ’26 / ORGANIZER CMS</span>
+      <span id="admin-user-label" class="muted" style="font-size:16px">Restricted Organizer Portal</span>
     </div>
     <div style="margin-left:auto;display:flex;gap:12px;align-items:center">
       <a href="/" class="btn btn-sm">VIEW LIVE PORTAL</a>
@@ -25,18 +26,18 @@
   <section id="login-view" class="login-wrap">
     <div style="display:flex;align-items:center;gap:14px;margin-bottom:20px">
       <span class="accent-bar" style="width:32px"></span>
-      <span class="mono muted" style="font-size:13px">ORGANIZER ACCESS</span>
+      <span class="mono muted" style="font-size:13px">RESTRICTED ACCESS</span>
     </div>
-    <h1 class="display" style="margin:0 0 8px;font-size:34px;font-weight:500">Admin Login</h1>
-    <p class="muted" style="margin:0 0 24px;font-size:15px">Manage problem statements, release toggles, schedule, podium results, showcase, brief, and FAQs.</p>
-    <form id="login-form">
+    <h1 class="display" style="margin:0 0 8px;font-size:34px;font-weight:500">Organizer Sign In</h1>
+    <p class="muted" style="margin:0 0 24px;font-size:15px">Authorized ACM KLH committee members only.</p>
+    <form id="login-form" autocomplete="off">
       <div class="field">
-        <label for="login-username">Username or Email</label>
-        <input id="login-username" type="text" autocomplete="username" value="Admin" required>
+        <label for="login-username">Identifier</label>
+        <input id="login-username" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Enter username or email" required>
       </div>
       <div class="field">
         <label for="login-password">Password</label>
-        <input id="login-password" type="password" autocomplete="current-password" placeholder="Enter admin password" required>
+        <input id="login-password" type="password" autocomplete="off" placeholder="Enter password" required>
       </div>
       <p id="login-error" class="mono hidden" style="color:var(--danger);font-size:12px;margin:0 0 14px"></p>
       <button type="submit" class="btn btn-primary" style="width:100%">SIGN IN</button>

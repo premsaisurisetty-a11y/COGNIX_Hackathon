@@ -60,7 +60,7 @@ export function createApp(options: AppOptions): Express {
       '/api/admin/auth/login',
       rateLimit({
         windowMs: 15 * 60 * 1000,
-        limit: 20,
+        limit: 10,
         standardHeaders: true,
         legacyHeaders: false,
         message: {
@@ -72,6 +72,13 @@ export function createApp(options: AppOptions): Express {
       })
     );
   }
+
+  // Prevent search-engine indexing & browser caching of admin pages and APIs
+  app.use(['/admin', '/admin.html', '/api/admin'], (_req, res, next) => {
+    res.setHeader('X-Robots-Tag', 'noindex, nofollow, noarchive');
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+    next();
+  });
 
   const portalService = new PortalService(options.store);
   const adminService = new AdminService(options.store);
@@ -119,6 +126,12 @@ function createServerlessApp(): Express {
   const publicDir = path.resolve(__dirname, '..', 'public');
   const serverlessApp = express();
   serverlessApp.set('trust proxy', 1);
+
+  serverlessApp.use(['/admin', '/admin.html', '/api/admin'], (_req, res, next) => {
+    res.setHeader('X-Robots-Tag', 'noindex, nofollow, noarchive');
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+    next();
+  });
 
   serverlessApp.use(express.static(publicDir));
   serverlessApp.get('/', (_req, res) => {

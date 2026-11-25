@@ -1,6 +1,8 @@
 (function () {
   const TOKEN_KEY = 'cognix_admin_token';
-  let token = localStorage.getItem(TOKEN_KEY) || '';
+  // Clear any legacy persistent token and use tab-scoped sessionStorage for higher privacy
+  localStorage.removeItem(TOKEN_KEY);
+  let token = sessionStorage.getItem(TOKEN_KEY) || '';
   let activeTab = 'overview';
   let state = {
     admin: null,
@@ -58,12 +60,17 @@
 
   function logout() {
     token = '';
+    sessionStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(TOKEN_KEY);
     state.admin = null;
+    const u = document.getElementById('login-username');
+    const p = document.getElementById('login-password');
+    if (u) u.value = '';
+    if (p) p.value = '';
     document.getElementById('login-view').classList.remove('hidden');
     document.getElementById('dashboard-view').classList.add('hidden');
     document.getElementById('btn-logout').classList.add('hidden');
-    document.getElementById('admin-user-label').textContent = 'Sign in to manage hackathon content';
+    document.getElementById('admin-user-label').textContent = 'Restricted Organizer Portal';
   }
 
   async function loadAllData() {
@@ -805,7 +812,8 @@
         body: { username, password },
       });
       token = res.token;
-      localStorage.setItem(TOKEN_KEY, token);
+      sessionStorage.setItem(TOKEN_KEY, token);
+      document.getElementById('login-username').value = '';
       document.getElementById('login-password').value = '';
       await loadAllData();
       showToast('Signed in successfully');

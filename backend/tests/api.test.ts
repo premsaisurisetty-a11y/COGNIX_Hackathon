@@ -8,9 +8,9 @@ describe('COGNIX 26 Hackathon Portal CMS & Admin API', () => {
   let store: DataStore;
   let app: ReturnType<typeof createApp>;
 
-  const ADMIN_EMAIL = 'admin@acmklh.org';
-  const ADMIN_NAME = 'Admin';
-  const ADMIN_PASSWORD = 'ACM0206';
+  const ADMIN_EMAIL = 'organizer@acmklh.org';
+  const ADMIN_NAME = 'OrganizerTest';
+  const ADMIN_PASSWORD = 'TestPassword123!';
 
   beforeEach(async () => {
     store = new InMemoryStore();
@@ -42,7 +42,9 @@ describe('COGNIX 26 Hackathon Portal CMS & Admin API', () => {
 
     const adminPage = await request(app).get('/admin');
     expect(adminPage.status).toBe(200);
-    expect(adminPage.text).toContain('Admin Login');
+    expect(adminPage.text).toContain('Organizer Sign In');
+    expect(adminPage.text).not.toContain('value="Admin"');
+    expect(adminPage.headers['x-robots-tag']).toContain('noindex');
 
     const health = await request(app).get('/api/health');
     expect(health.status).toBe(200);
@@ -73,7 +75,7 @@ describe('COGNIX 26 Hackathon Portal CMS & Admin API', () => {
       .post('/api/admin/auth/login')
       .send({ username: ADMIN_NAME, password: ADMIN_PASSWORD });
     expect(usernameLogin.status).toBe(200);
-    expect(usernameLogin.body.admin.name).toBe('Admin');
+    expect(usernameLogin.body.admin.name).toBe(ADMIN_NAME);
 
     const token = await loginAsAdmin();
     const me = await request(app)
@@ -269,6 +271,7 @@ describe('COGNIX 26 Hackathon Portal CMS & Admin API', () => {
 
     const adminPage = await request(vercelApp).get('/admin');
     expect(adminPage.status).toBe(200);
-    expect(adminPage.text).toContain('Admin Login');
+    expect(adminPage.text).toContain('Organizer Sign In');
+    expect(adminPage.text).not.toContain('value="Admin"');
   });
 });
