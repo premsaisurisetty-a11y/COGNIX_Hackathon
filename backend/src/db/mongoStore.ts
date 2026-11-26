@@ -138,8 +138,8 @@ export class MongoStore implements DataStore {
           briefHeadline: 'Build an intelligent full-stack application in one weekend.',
           briefSummary:
             'Hosted by ACM KLH Student Chapter, Bachupally, Hyderabad. Problem statements are released on Friday and teams build, submit, and demo on Saturday.',
-          acmInstagramUrl: '',
-          acmLinkedinUrl: '',
+          acmInstagramUrl: 'https://www.instagram.com/acm_klh',
+          acmLinkedinUrl: 'https://www.linkedin.com/company/klhbachupallyacm/',
           acmWebsiteUrl: 'https://www.acmklh.com',
           updatedAt: nowIso(),
         },
@@ -387,9 +387,9 @@ export class MongoStore implements DataStore {
     const clean = stripMongoId(doc);
     return {
       ...clean,
-      acmInstagramUrl: clean.acmInstagramUrl ?? '',
-      acmLinkedinUrl: clean.acmLinkedinUrl ?? '',
-      acmWebsiteUrl: clean.acmWebsiteUrl ?? 'https://www.acmklh.com',
+      acmInstagramUrl: clean.acmInstagramUrl || 'https://www.instagram.com/acm_klh',
+      acmLinkedinUrl: clean.acmLinkedinUrl || 'https://www.linkedin.com/company/klhbachupallyacm/',
+      acmWebsiteUrl: clean.acmWebsiteUrl || 'https://www.acmklh.com',
     };
   }
 

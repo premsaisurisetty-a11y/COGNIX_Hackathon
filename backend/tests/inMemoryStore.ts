@@ -67,8 +67,8 @@ export class InMemoryStore implements DataStore {
         briefHeadline: 'Build an intelligent full-stack application in one weekend.',
         briefSummary:
           'Hosted by ACM KLH Student Chapter, Bachupally, Hyderabad. Problem statements are released on Friday and teams build, submit, and demo on Saturday.',
-        acmInstagramUrl: '',
-        acmLinkedinUrl: '',
+        acmInstagramUrl: 'https://www.instagram.com/acm_klh',
+        acmLinkedinUrl: 'https://www.linkedin.com/company/klhbachupallyacm/',
         acmWebsiteUrl: 'https://www.acmklh.com',
         updatedAt: nowIso(),
       };
