@@ -157,9 +157,18 @@ describe('COGNIX 26 Hackathon Portal CMS & Admin API', () => {
     const cfg = await request(app)
       .patch('/api/admin/config')
       .set('Authorization', `Bearer ${token}`)
-      .send({ eventDate: 'March 13–14, 2026', venue: 'KLH Bachupally Auditorium' });
+      .send({
+        eventDate: 'March 13–14, 2026',
+        venue: 'KLH Bachupally Auditorium',
+        acmInstagramUrl: 'https://www.instagram.com/acmklh',
+        acmLinkedinUrl: 'https://www.linkedin.com/company/acm-klh',
+        acmWebsiteUrl: 'https://www.acmklh.com',
+      });
     expect(cfg.status).toBe(200);
     expect(cfg.body.venue).toBe('KLH Bachupally Auditorium');
+    expect(cfg.body.acmInstagramUrl).toBe('https://www.instagram.com/acmklh');
+    expect(cfg.body.acmLinkedinUrl).toBe('https://www.linkedin.com/company/acm-klh');
+    expect(cfg.body.acmWebsiteUrl).toBe('https://www.acmklh.com');
 
     const dayRes = await request(app)
       .post('/api/admin/schedule/days')

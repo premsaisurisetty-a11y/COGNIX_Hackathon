@@ -17,6 +17,9 @@ export interface EventConfigDoc {
   showShowcase: boolean;
   briefHeadline: string;
   briefSummary: string;
+  acmInstagramUrl: string;
+  acmLinkedinUrl: string;
+  acmWebsiteUrl: string;
   updatedAt: string;
 }
 

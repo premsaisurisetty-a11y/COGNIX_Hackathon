@@ -206,6 +206,9 @@
           <div class="field"><label>Release Kicker Label</label><input name="releaseLabel" value="${esc(c.releaseLabel)}" required></div>
           <div class="field"><label>Release Date Text</label><input name="releaseDateText" value="${esc(c.releaseDateText)}" required></div>
           <div class="field"><label>Results Status Badge</label><input name="resultsStatus" value="${esc(c.resultsStatus)}" required></div>
+          <div class="field"><label>ACM Instagram URL</label><input name="acmInstagramUrl" value="${esc(c.acmInstagramUrl)}" placeholder="https://instagram.com/..."></div>
+          <div class="field"><label>ACM LinkedIn URL</label><input name="acmLinkedinUrl" value="${esc(c.acmLinkedinUrl)}" placeholder="https://linkedin.com/company/..."></div>
+          <div class="field"><label>ACM Website URL</label><input name="acmWebsiteUrl" value="${esc(c.acmWebsiteUrl)}" placeholder="https://www.acmklh.com"></div>
         </div>
         <div class="field"><label>Problem Statements Intro</label><textarea name="problemsIntro" required>${esc(c.problemsIntro)}</textarea></div>
         <div class="field"><label>Schedule Intro</label><textarea name="scheduleIntro" required>${esc(c.scheduleIntro)}</textarea></div>

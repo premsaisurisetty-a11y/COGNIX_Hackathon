@@ -138,6 +138,9 @@ export class MongoStore implements DataStore {
           briefHeadline: 'Build an intelligent full-stack application in one weekend.',
           briefSummary:
             'Hosted by ACM KLH Student Chapter, Bachupally, Hyderabad. Problem statements are released on Friday and teams build, submit, and demo on Saturday.',
+          acmInstagramUrl: '',
+          acmLinkedinUrl: '',
+          acmWebsiteUrl: 'https://www.acmklh.com',
           updatedAt: nowIso(),
         },
       },
@@ -381,7 +384,13 @@ export class MongoStore implements DataStore {
   async getConfig(): Promise<EventConfigDoc> {
     const doc = await this.db.collection<StoredConfigDoc>('event_config').findOne({ _id: 1 });
     if (!doc) throw new Error('Event configuration is not initialized');
-    return stripMongoId(doc);
+    const clean = stripMongoId(doc);
+    return {
+      ...clean,
+      acmInstagramUrl: clean.acmInstagramUrl ?? '',
+      acmLinkedinUrl: clean.acmLinkedinUrl ?? '',
+      acmWebsiteUrl: clean.acmWebsiteUrl ?? 'https://www.acmklh.com',
+    };
   }
 
   async updateConfig(patch: Partial<Omit<EventConfigDoc, 'updatedAt'>>): Promise<EventConfigDoc> {

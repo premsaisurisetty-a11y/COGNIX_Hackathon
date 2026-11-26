@@ -48,6 +48,9 @@ export const updateConfigSchema = z
     showShowcase: z.boolean().optional(),
     briefHeadline: z.string().trim().min(1).max(300).optional(),
     briefSummary: z.string().trim().min(1).max(2000).optional(),
+    acmInstagramUrl: optionalUrl.optional(),
+    acmLinkedinUrl: optionalUrl.optional(),
+    acmWebsiteUrl: optionalUrl.optional(),
   })
   .refine((data) => Object.keys(data).length > 0, {
     message: 'At least one field must be provided',
